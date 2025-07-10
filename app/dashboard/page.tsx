@@ -1,5 +1,4 @@
 "use client"
-
 import { useState, useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -339,18 +338,18 @@ export default function DashboardPage() {
                       <td className="p-2">{report.cliente}</td>
                       <td className="p-2">{report.defecto}</td>
                       <td className="p-2">
-                        {report.foto_url ? (
-                          <a
-                            href={report.foto_url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-blue-600 hover:text-blue-800 underline"
-                          >
-                            Ver foto
-                          </a>
-                        ) : (
-                          <span className="text-gray-400">Sin foto</span>
-                        )}
+                        {report.fotos && report.fotos.length > 0 ? (
+  <a
+    href={report.fotos[0]}
+    target="_blank"
+    rel="noopener noreferrer"
+    className="text-blue-600 hover:text-blue-800 underline"
+  >
+    Ver fotos
+  </a>
+) : (
+  <span className="text-gray-400">Sin fotos</span>
+)}
                       </td>
                     </tr>
                   ))}
