@@ -2,8 +2,8 @@
 
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card"
 import { Select, SelectTrigger, SelectContent, SelectItem, SelectValue } from "@/components/ui/select"
 import { createClient } from "@supabase/supabase-js"
 
@@ -54,26 +54,25 @@ export default function CrearPlan() {
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div>
-          <label className="block mb-1">Área</label>
-          <Select value={form.area} onValueChange={(value) => setForm({ ...form, area: value })}>
-            <SelectTrigger>
-              <SelectValue placeholder="Selecciona un área" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="Sillas">Sillas</SelectItem>
-              <SelectItem value="Salas">Salas</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-        {["cantidad", "producto", "color", "lf", "pt", "lp", "pedido", "cliente"].map((field) => (
-          <div key={field}>
-            <label className="block capitalize mb-1">{field}</label>
-            <Input name={field} value={form[field as keyof typeof form]} onChange={handleChange} />
-          </div>
-        ))}
-      </div>
-      </div>
+              <div>
+                <label className="block mb-1">Área</label>
+                <Select value={form.area} onValueChange={(value) => setForm({ ...form, area: value })}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecciona un área" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Sillas">Sillas</SelectItem>
+                    <SelectItem value="Salas">Salas</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              {["cantidad", "producto", "color", "lf", "pt", "lp", "pedido", "cliente"].map((field) => (
+                <div key={field}>
+                  <label className="block capitalize mb-1">{field}</label>
+                  <Input name={field} value={form[field as keyof typeof form]} onChange={handleChange} />
+                </div>
+              ))}
+            </div>
             <Button onClick={handleSubmit} className="mt-6">Crear Plan</Button>
           </CardContent>
         </Card>
