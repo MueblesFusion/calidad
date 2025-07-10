@@ -181,10 +181,16 @@ export default function HomePage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center space-x-4">
-          
+             <Image src="/logo.png"alt="Muebles Fusión "width={200}height={60}priority/>
 
             </div>
-           
+            <div className="flex space-x-4">
+              <Link href="/dashboard">
+                <Button variant="outline" className="flex items-center space-x-2 bg-transparent">
+                  <BarChart3 className="h-4 w-4" />
+                  <span>Dashboard</span>
+                </Button>
+              </Link>
             </div>
           </div>
         </div>
