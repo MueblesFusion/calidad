@@ -3,6 +3,7 @@
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { Select, SelectTrigger, SelectContent, SelectItem, SelectValue } from "@/components/ui/select"
 import { createClient } from "@supabase/supabase-js"
 
 const supabase = createClient(
@@ -47,28 +48,22 @@ export default function CrearPlan() {
     <div className="p-4 ml-64">
       <h1 className="text-2xl font-bold mb-4">Crear Plan</h1>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {Object.keys(form).map((field) => (
+        <div>
+          <label className="block mb-1">Área</label>
+          <Select value={form.area} onValueChange={(value) => setForm({ ...form, area: value })}>
+            <SelectTrigger>
+              <SelectValue placeholder="Selecciona un área" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="Sillas">Sillas</SelectItem>
+              <SelectItem value="Salas">Salas</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        {["cantidad", "producto", "color", "lf", "pt", "lp", "pedido", "cliente"].map((field) => (
           <div key={field}>
-            {field === "area" ? (
-            <>
-              <label className="block capitalize mb-1">Área</label>
-              <select
-                name="area"
-                value={form.area}
-                onChange={handleChange}
-                className="w-full border rounded px-3 py-2"
-              >
-                <option value="">Selecciona un área</option>
-                <option value="Sillas">Sillas</option>
-                <option value="Salas">Salas</option>
-              </select>
-            </>
-          ) : (
-            <>
-              <label className="block capitalize mb-1">{field}</label>
-              <Input name={field} value={form[field as keyof typeof form]} onChange={handleChange} />
-            </>
-          )
+            <label className="block capitalize mb-1">{field}</label>
+            <Input name={field} value={form[field as keyof typeof form]} onChange={handleChange} />
           </div>
         ))}
       </div>
