@@ -1,33 +1,31 @@
-'use client'
+"use client"
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { cn } from "@/lib/utils"
-
-const menuItems = [
-  { label: "Registrar defecto", href: "/" },
-  { label: "Dashboard", href: "/dashboard" },
-]
 
 export default function Sidebar() {
   const pathname = usePathname()
 
+  const links = [
+    { name: "Registrar defecto", href: "/" },
+    { name: "Dashboard", href: "/dashboard" },
+    { name: "Crear Plan", href: "/plan" },
+    { name: "Planes de Trabajo", href: "/planes" },
+  ]
+
   return (
-    <aside className="w-60 bg-white border-r h-screen fixed left-0 top-0 px-4 py-6">
-      <div className="mb-8">
-        <img src="/logo.png" alt="Muebles Fusión" className="w-full h-auto" />
-      </div>
-      <nav className="space-y-4">
-        {menuItems.map((item) => (
+    <aside className="w-64 h-full border-r bg-white shadow-sm fixed top-0 left-0">
+      <div className="p-4 font-bold text-xl border-b">Calidad Fusion</div>
+      <nav className="p-4 flex flex-col gap-2">
+        {links.map((link) => (
           <Link
-            key={item.href}
-            href={item.href}
-            className={cn(
-              "block px-4 py-2 rounded text-gray-700 hover:bg-gray-100 font-medium",
-              pathname === item.href && "bg-gray-200 text-blue-600"
-            )}
+            key={link.href}
+            href={link.href}
+            className={`px-3 py-2 rounded hover:bg-gray-100 ${
+              pathname === link.href ? "bg-gray-200 font-semibold" : ""
+            }`}
           >
-            {item.label}
+            {link.name}
           </Link>
         ))}
       </nav>
