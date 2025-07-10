@@ -158,7 +158,6 @@ export default function DashboardPage() {
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center space-x-4">
             
-        <Image src="/placeholder.svg?height=40&width=40" alt="Logo" width={40} height={40} className="rounded" />
               <h1 className="text-2xl font-bold text-gray-900">Estadísticas de Defectos</h1>
             </div>
             <Button onClick={exportToExcel} className="flex items-center space-x-2">
