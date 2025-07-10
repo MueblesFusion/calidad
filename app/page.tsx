@@ -329,9 +329,15 @@ export default function HomePage() {
                       </p>
                       <p className="text-xs text-gray-500">PNG, JPG o JPEG</p>
                     </div>
-                    <input id="foto" type="file" className="hidden" accept="image/*" onChange={handleFileChange} />
+                    <input id="foto" type="file" className="hidden" accept="image/*" multiple onChange={handleFileChange} />
                   </label>
-                  {foto && <p className="mt-2 text-sm text-gray-600">Archivo seleccionado: {foto.name}</p>}
+                  {fotos.length > 0 && (
+  <ul className="mt-2 text-sm text-gray-600 list-disc pl-4">
+    {fotos.map((foto, index) => (
+      <li key={index}>{foto.name}</li>
+    ))}
+  </ul>
+)}
                 </div>
               </div>
 
