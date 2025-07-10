@@ -1,84 +1,200 @@
 "use client"
 
+import type React from "react"
 import { useState } from "react"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card"
-import { Select, SelectTrigger, SelectContent, SelectItem, SelectValue } from "@/components/ui/select"
+import { Label } from "@/components/ui/label"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Loader2 } from "lucide-react"
 import { createClient } from "@supabase/supabase-js"
+import { useToast } from "@/hooks/use-toast"
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 )
 
-export default function CrearPlan() {
-  const [form, setForm] = useState({
-    area: "", cantidad: "", producto: "", color: "",
-    lf: "", pt: "", lp: "", pedido: "", cliente: ""
+export default function CrearPlanPage() {
+  const { toast } = useToast()
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [formData, setFormData] = useState({
+    area: "",
+    cantidad: "",
+    producto: "",
+    color: "",
+    lf: "",
+    pt: "",
+    lp: "",
+    pedido: "",
+    cliente: "",
   })
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setForm({ ...form, [e.target.name]: e.target.value })
+  const handleInputChange = (field: string, value: string) => {
+    setFormData((prev) => ({ ...prev, [field]: value }))
   }
 
-  const handleSubmit = async () => {
-    const { data, error } = await supabase.from("planes").insert([
-      {
-        area: form.area,
-        cantidad: parseInt(form.cantidad) || 0,
-        producto: form.producto,
-        color: form.color,
-        lf: form.lf,
-        pt: form.pt,
-        lp: form.lp,
-        pedido: form.pedido,
-        cliente: form.cliente,
-        creado_en: new Date().toISOString()
-      }
-    ])
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setIsSubmitting(true)
 
-    if (error) {
-      console.error("Error al crear plan:", error)
-    } else {
-      console.log("Plan creado exitosamente:", data)
+    try {
+      const { error } = await supabase.from("planes").insert([
+        {
+          ...formData,
+          cantidad: parseInt(formData.cantidad) || 0,
+          creado_en: new Date().toISOString(),
+        },
+      ])
+
+      if (error) {
+        console.error("Error al crear plan:", error)
+        toast({
+          title: "Error",
+          description: "No se pudo guardar el plan",
+          variant: "destructive",
+        })
+      } else {
+        toast({
+          title: "Éxito",
+          description: "Plan creado correctamente",
+        })
+        setFormData({
+          area: "",
+          cantidad: "",
+          producto: "",
+          color: "",
+          lf: "",
+          pt: "",
+          lp: "",
+          pedido: "",
+          cliente: "",
+        })
+      }
+    } catch (err) {
+      console.error("Error:", err)
+    } finally {
+      setIsSubmitting(false)
     }
   }
 
   return (
-    <div className="flex">
-      <div className="w-full ml-64 p-6 flex justify-center">
-      <div className="max-w-4xl mx-auto">
+    <div className="min-h-screen bg-gray-50">
+      <main className="max-w-4xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
         <Card>
           <CardHeader>
-            <CardTitle>Crear Plan</CardTitle>
+            <CardTitle className="text-xl font-semibold">Crear Plan</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <form onSubmit={handleSubmit} className="space-y-6">
+              {/* Área */}
               <div>
-                <label className="block mb-1">Área</label>
-                <Select value={form.area} onValueChange={(value) => setForm({ ...form, area: value })}>
+                <Label htmlFor="area">Área *</Label>
+                <Select value={formData.area} onValueChange={(value) => handleInputChange("area", value)}>
                   <SelectTrigger>
                     <SelectValue placeholder="Selecciona un área" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="Sillas">Sillas</SelectItem>
-                    <SelectItem value="Salas">Salas</SelectItem>
+                    <SelectItem value="SILLAS">SILLAS</SelectItem>
+                    <SelectItem value="SALAS">SALAS</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
-              {["cantidad", "producto", "color", "lf", "pt", "lp", "pedido", "cliente"].map((field) => (
-                <div key={field}>
-                  <label className="block capitalize mb-1">{field}</label>
-                  <Input name={field} value={form[field as keyof typeof form]} onChange={handleChange} />
+
+              {/* Información del Plan */}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                <div>
+                  <Label htmlFor="cantidad">Cantidad</Label>
+                  <Input
+                    id="cantidad"
+                    value={formData.cantidad}
+                    onChange={(e) => handleInputChange("cantidad", e.target.value)}
+                    placeholder="Cantidad del plan"
+                  />
                 </div>
-              ))}
-            </div>
-            <Button onClick={handleSubmit} className="mt-6">Crear Plan</Button>
+                <div>
+                  <Label htmlFor="producto">Producto</Label>
+                  <Input
+                    id="producto"
+                    value={formData.producto}
+                    onChange={(e) => handleInputChange("producto", e.target.value)}
+                    placeholder="Nombre del producto"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="color">Color</Label>
+                  <Input
+                    id="color"
+                    value={formData.color}
+                    onChange={(e) => handleInputChange("color", e.target.value)}
+                    placeholder="Color del producto"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="lf">LF</Label>
+                  <Input
+                    id="lf"
+                    value={formData.lf}
+                    onChange={(e) => handleInputChange("lf", e.target.value)}
+                    placeholder="LF"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="pt">PT</Label>
+                  <Input
+                    id="pt"
+                    value={formData.pt}
+                    onChange={(e) => handleInputChange("pt", e.target.value)}
+                    placeholder="PT"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="lp">LP</Label>
+                  <Input
+                    id="lp"
+                    value={formData.lp}
+                    onChange={(e) => handleInputChange("lp", e.target.value)}
+                    placeholder="LP"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="pedido">Pedido</Label>
+                  <Input
+                    id="pedido"
+                    value={formData.pedido}
+                    onChange={(e) => handleInputChange("pedido", e.target.value)}
+                    placeholder="Número de pedido"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="cliente">Cliente</Label>
+                  <Input
+                    id="cliente"
+                    value={formData.cliente}
+                    onChange={(e) => handleInputChange("cliente", e.target.value)}
+                    placeholder="Nombre del cliente"
+                  />
+                </div>
+              </div>
+
+              {/* Botón de Envío */}
+              <div className="flex justify-end">
+                <Button type="submit" className="px-8" disabled={isSubmitting}>
+                  {isSubmitting ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Guardando...
+                    </>
+                  ) : (
+                    "Crear Plan"
+                  )}
+                </Button>
+              </div>
+            </form>
           </CardContent>
         </Card>
-      </div>
-          </div>
+      </main>
     </div>
   )
 }
