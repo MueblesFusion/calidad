@@ -146,7 +146,6 @@ export default function DashboardPage() {
           <Loader2 className="h-6 w-6 animate-spin" />
           <span>Cargando reportes...</span>
         </div>
-      </div>
     )
   }
 
@@ -160,8 +159,6 @@ export default function DashboardPage() {
               
               <h1 className="text-2xl font-bold text-gray-900">Estadísticas de Defectos</h1>
             </div>
-            
-          </div>
         </div>
       </header>
 
