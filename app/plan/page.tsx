@@ -37,6 +37,24 @@ export default function CrearPlanPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+
+    // Validación de campos vacíos
+    for (const key in formData) {
+      if (!formData[key as keyof typeof formData] || (key === "cantidad" && parseInt(formData.cantidad) <= 0)) {
+        toast({
+          title: "Datos incompletos",
+          description:
+            key === "cantidad"
+              ? "La cantidad debe ser mayor a 0"
+              : "Todos los campos deben estar completos",
+          variant: "destructive",
+        })
+        return
+      }
+    }
+
+
+    e.preventDefault()
     setIsSubmitting(true)
 
     try {
