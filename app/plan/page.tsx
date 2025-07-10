@@ -2,6 +2,7 @@
 
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Select, SelectTrigger, SelectContent, SelectItem, SelectValue } from "@/components/ui/select"
 import { createClient } from "@supabase/supabase-js"
@@ -46,8 +47,13 @@ export default function CrearPlan() {
 
   return (
     <div className="p-4 ml-64">
-      <h1 className="text-2xl font-bold mb-4">Crear Plan</h1>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div className="max-w-4xl mx-auto">
+        <Card>
+          <CardHeader>
+            <CardTitle>Crear Plan</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
           <label className="block mb-1">Área</label>
           <Select value={form.area} onValueChange={(value) => setForm({ ...form, area: value })}>
@@ -67,7 +73,11 @@ export default function CrearPlan() {
           </div>
         ))}
       </div>
-      <Button onClick={handleSubmit} className="mt-6">Crear Plan</Button>
+      </div>
+            <Button onClick={handleSubmit} className="mt-6">Crear Plan</Button>
+          </CardContent>
+        </Card>
+      </div>
     </div>
   )
 }
