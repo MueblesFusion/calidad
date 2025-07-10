@@ -157,19 +157,10 @@ export default function DashboardPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center space-x-4">
-              <Link href="/">
-                <Button variant="ghost" size="sm">
-                  <ArrowLeft className="h-4 w-4 mr-2" />
-                  Volver
-                </Button>
-              </Link>
-              <Image src="/placeholder.svg?height=40&width=40" alt="Logo" width={40} height={40} className="rounded" />
-              <h1 className="text-2xl font-bold text-gray-900">Dashboard - Estadísticas</h1>
+              
+              <h1 className="text-2xl font-bold text-gray-900">Estadísticas de Defectos</h1>
             </div>
-            <Button onClick={exportToExcel} className="flex items-center space-x-2">
-              <Download className="h-4 w-4" />
-              <span>Exportar Excel</span>
-            </Button>
+            
           </div>
         </div>
       </header>
@@ -204,7 +195,11 @@ export default function DashboardPage() {
                   "Aplicar Filtro"
                 )}
               </Button>
-              <Button variant="outline" onClick={clearFilter}>
+              <Button variant="outline" onClick={clearFilter}>Limpiar</Button>
+              <Button onClick={exportToExcel} className="flex items-center space-x-2">
+              <Download className="h-4 w-4" />
+              <span>Exportar Excel</span>
+            </Button>
                 Limpiar
               </Button>
             </div>
