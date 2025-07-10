@@ -184,13 +184,7 @@ export default function HomePage() {
           
 
             </div>
-            <div className="flex space-x-4">
-              <Link href="/dashboard">
-                <Button variant="outline" className="flex items-center space-x-2 bg-transparent">
-                  <BarChart3 className="h-4 w-4" />
-                  <span>Dashboard</span>
-                </Button>
-              </Link>
+           
             </div>
           </div>
         </div>
