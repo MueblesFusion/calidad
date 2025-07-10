@@ -49,8 +49,26 @@ export default function CrearPlan() {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {Object.keys(form).map((field) => (
           <div key={field}>
-            <label className="block capitalize mb-1">{field}</label>
-            <Input name={field} value={form[field as keyof typeof form]} onChange={handleChange} />
+            {field === "area" ? (
+            <>
+              <label className="block capitalize mb-1">Área</label>
+              <select
+                name="area"
+                value={form.area}
+                onChange={handleChange}
+                className="w-full border rounded px-3 py-2"
+              >
+                <option value="">Selecciona un área</option>
+                <option value="Sillas">Sillas</option>
+                <option value="Salas">Salas</option>
+              </select>
+            </>
+          ) : (
+            <>
+              <label className="block capitalize mb-1">{field}</label>
+              <Input name={field} value={form[field as keyof typeof form]} onChange={handleChange} />
+            </>
+          )
           </div>
         ))}
       </div>
