@@ -34,7 +34,7 @@ export async function createDefectReport(report: Omit<DefectReport, "id" | "crea
 }
 
 export async function getDefectReports(startDate?: string, endDate?: string) {
-  let query = supabase.from("defect_reports").select("*").order("created_at", { ascending: false })
+  let query = supabase.from("defect_reports").select("*, defecto_fotos(url)").order("created_at", { ascending: false })
 
   if (startDate && endDate) {
     query = query.gte("fecha", startDate).lte("fecha", endDate)
@@ -43,6 +43,15 @@ export async function getDefectReports(startDate?: string, endDate?: string) {
   const { data, error } = await query
 
   if (error) {
+    console.error("Error fetching defect reports:", error)
+    throw error
+  }
+
+  return data.map((defecto: any) => ({
+    ...defecto,
+    fotos: defecto.defecto_fotos?.map((f: any) => f.url) || []
+  }))
+
     console.error("Error fetching defect reports:", error)
     throw error
   }
@@ -77,6 +86,15 @@ export async function getDefectStats(startDate?: string, endDate?: string) {
   const { data, error } = await query
 
   if (error) {
+    console.error("Error fetching defect reports:", error)
+    throw error
+  }
+
+  return data.map((defecto: any) => ({
+    ...defecto,
+    fotos: defecto.defecto_fotos?.map((f: any) => f.url) || []
+  }))
+
     console.error("Error fetching stats:", error)
     throw error
   }
