@@ -46,8 +46,8 @@ export default function CrearPlan() {
   }
 
   return (
-    <div className="p-4 ml-64">
-      <div className="max-w-4xl mx-auto">
+    <div className="p-4 ml-64 flex justify-center">
+      <div className="w-full max-w-4xl">
         <Card>
           <CardHeader>
             <CardTitle>Crear Plan</CardTitle>
