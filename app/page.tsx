@@ -83,7 +83,7 @@ export default function HomePage() {
     defecto: "",
     descripcion: "",
   })
-  const [foto, setFoto] = useState<File | null>(null)
+  const [fotos, setFotos] = useState<File[]>([])
   const [isSubmitting, setIsSubmitting] = useState(false)
   const { toast } = useToast()
 
@@ -153,7 +153,7 @@ export default function HomePage() {
         defecto: "",
         descripcion: "",
       })
-      setFoto(null)
+      setFotos([])
 
       // Reset file input
       const fileInput = document.getElementById("foto") as HTMLInputElement
