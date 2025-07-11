@@ -265,6 +265,9 @@ export default function PlanesDeTrabajo() {
           </div>
         </DialogContent>
       </Dialog>
+    </div>
+  )
+}
 
       {/* Modal de Historial */}
       <Dialog open={historialModalOpen} onOpenChange={setHistorialModalOpen}>
@@ -287,6 +290,9 @@ export default function PlanesDeTrabajo() {
           </div>
         </DialogContent>
       </Dialog>
+    </div>
+  )
+}
       </main>
 </div>
   )
