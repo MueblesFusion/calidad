@@ -17,7 +17,7 @@ export default function Sidebar() {
     <>
       {/* Título visible en móvil */}
       <div className="lg:hidden fixed top-0 left-0 w-full bg-white shadow z-20 flex items-center justify-between px-4 py-3">
-        <span className="font-bold">Calidad Muebles Fusion</span>
+       <img src="/logo.png" alt="Calidad Muebles Fusion" className="h-8" />
       </div>
 
       {/* Menú lateral visible solo en escritorio */}
