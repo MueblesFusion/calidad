@@ -155,7 +155,8 @@ export default function PlanesDeTrabajo() {
   const salas = planes.filter((p) => p.area === "SALAS")
 
   return (
-    <div className="p-4 ml-64">
+    <div className="min-h-screen bg-gray-50">
+  <main className="max-w-4xl mx-auto py-8 px-4">
       {renderTabla("Planes - SILLAS", sillas)}
       {renderTabla("Planes - SALAS", salas)}
 
@@ -176,7 +177,7 @@ export default function PlanesDeTrabajo() {
           </div>
         </DialogContent>
       </Dialog>
-    </div>
+      </main>
+</div>
   )
 }
-
