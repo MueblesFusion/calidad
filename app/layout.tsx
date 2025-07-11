@@ -5,8 +5,8 @@ import Sidebar from "@/components/Sidebar"
 const inter = Inter({ subsets: ["latin"] })
 
 export const metadata = {
-  title: "Calidad Fusion",
-  description: "Registro de defectos",
+  title: "Calidad Muebles Fusion",
+  description: "Sistema Control de Calidad",
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
