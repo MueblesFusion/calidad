@@ -15,13 +15,13 @@ export default function Sidebar() {
 
   return (
     <>
-      {/* Botón móvil */}
+      {/* Título visible en móvil */}
       <div className="lg:hidden fixed top-0 left-0 w-full bg-white shadow z-20 flex items-center justify-between px-4 py-3">
         <span className="font-bold">Calidad Fusion</span>
       </div>
 
-      {/* Sidebar completo (solo visible en escritorio) */}
-      <aside className="w-64 h-full border-r bg-white shadow-sm fixed top-0 left-0 hidden lg:block">
+      {/* Menú lateral visible solo en escritorio */}
+      <aside className="hidden lg:block w-64 h-full border-r bg-white shadow-sm fixed top-0 left-0">
         <div className="p-4 font-bold text-xl border-b">Calidad Fusion</div>
         <nav className="p-4 flex flex-col gap-2">
           {links.map((link) => (
