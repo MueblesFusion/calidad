@@ -1,3 +1,5 @@
+import ResponsiveWrapper from "@/components/ResponsiveWrapper"
+
 "use client"
 
 import { useEffect, useState } from "react"
@@ -14,8 +16,6 @@ const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 )
-
-import ResponsiveWrapper from "@/components/ResponsiveWrapper"
 
 export default function PlanesDeTrabajo() {
   const { toast } = useToast()
@@ -115,7 +115,6 @@ export default function PlanesDeTrabajo() {
             {planesFiltrados.map((plan) => {
               const pendiente = plan.cantidad - (plan.liberado || 0)
               return (
-    <ResponsiveWrapper>
                 <TableRow key={plan.id}>
                   <TableCell>{new Date(plan.creado_en).toLocaleDateString()}</TableCell>
                   <TableCell>{plan.producto}</TableCell>
@@ -159,7 +158,6 @@ export default function PlanesDeTrabajo() {
 
   return (
     <ResponsiveWrapper>
-    <div className="min-h-screen bg-gray-50">
   <main className="max-w-4xl mx-auto py-8 px-4">
       {renderTabla("Planes - SILLAS", sillas)}
       {renderTabla("Planes - SALAS", salas)}
@@ -182,7 +180,6 @@ export default function PlanesDeTrabajo() {
         </DialogContent>
       </Dialog>
       </main>
-</div>
     </ResponsiveWrapper>
   )
 }
