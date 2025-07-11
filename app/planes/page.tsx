@@ -1,6 +1,7 @@
+"use client"
 import ResponsiveWrapper from "@/components/ResponsiveWrapper"
 
-"use client"
+
 
 import { useEffect, useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
