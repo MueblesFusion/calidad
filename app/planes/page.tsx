@@ -123,6 +123,7 @@ export default function PlanesDeTrabajo() {
                   <TableCell>{plan.liberado || 0}</TableCell>
                   <TableCell>{pendiente}</TableCell>
                   <TableCell>
+                    <>
                     {pendiente > 0 ? (
                       <Button
                         variant="secondary"
@@ -159,6 +160,7 @@ export default function PlanesDeTrabajo() {
                     ) : (
                       <span className="text-green-600 font-medium">Completado</span>
                     )}
+                    </>
                   </TableCell>
                 </TableRow>
               )
