@@ -9,7 +9,7 @@ export default function Sidebar() {
   const links = [
     { name: "Crear Plan", href: "/plan" },
     { name: "Planes de Trabajo", href: "/planes" },
-    { name: "Registrar defecto", href: "/" },
+    { name: "Registrar Defecto", href: "/" },
     { name: "Dashboard", href: "/dashboard" }
   ]
 
