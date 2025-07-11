@@ -2,54 +2,43 @@
 'use client'
 
 import { useState } from "react";
-import { usePathname } from "next/navigation";
 import Sidebar from "@/components/Sidebar";
 import MobileMenu from "@/components/MobileMenu";
-import { useMediaQuery } from 'usehooks-ts';
+import { Toaster } from "@/components/ui/sonner";
+
+export const metadata = {
+  title: "Calidad Muebles Fusion",
+  description: "Sistema de Control de Calidad",
+}
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
-  const pathname = usePathname();
-  const isMobile = useMediaQuery('(max-width: 768px)');
   const [isOpen, setIsOpen] = useState(false);
-
-  const isDashboard = pathname === "/dashboard";
-  const isPlan = pathname === "/plan";
-  const isPlanes = pathname === "/planes";
-  const isRegistro = pathname === "/";
-
-  const showSidebar = isDashboard || isPlan || isPlanes || isRegistro;
 
   return (
     <html lang="es">
-      <head>
-        <title>Calidad Muebles Fusion</title>
-      </head>
-      <body className="flex">
-        {showSidebar && isMobile && (
-          <>
-            <MobileMenu isOpen={isOpen} setIsOpen={setIsOpen} />
-          </>
-        )}
+      <head />
+      <body className="flex flex-col min-h-screen">
+        <header className="lg:hidden flex items-center justify-between px-4 py-3 shadow bg-white">
+          <div className="flex items-center gap-2">
+            <button onClick={() => setIsOpen(true)} className="text-2xl font-bold">
+              ☰
+            </button>
+            <span className="font-bold text-lg">Calidad Muebles Fusion</span>
+          </div>
+        </header>
 
-        {showSidebar && !isMobile && (
-          <aside className="w-64 hidden md:block">
+        <div className="lg:flex flex-1 w-full">
+          <aside className="hidden lg:block w-64">
             <Sidebar />
           </aside>
-        )}
 
-        <main className="flex-1 flex flex-col w-full">
-          <header className="flex items-center justify-between p-4 border-b">
-            <div className="flex items-center gap-2">
-              {isMobile && (
-                <button onClick={() => setIsOpen(true)} className="text-2xl font-bold">
-                  ☰
-                </button>
-              )}
-              <h1 className="text-xl font-semibold">Calidad Muebles Fusion</h1>
-            </div>
-          </header>
-          <div className="p-4">{children}</div>
-        </main>
+          <MobileMenu isOpen={isOpen} setIsOpen={setIsOpen} />
+
+          <main className="flex-1 p-4">
+            {children}
+            <Toaster />
+          </main>
+        </div>
       </body>
     </html>
   );
