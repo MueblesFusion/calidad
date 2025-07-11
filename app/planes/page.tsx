@@ -19,6 +19,8 @@ export default function PlanesDeTrabajo() {
   const { toast } = useToast()
   const [planes, setPlanes] = useState<any[]>([])
   const [modalOpen, setModalOpen] = useState(false)
+  const [historialModalOpen, setHistorialModalOpen] = useState(false)
+  const [liberaciones, setLiberaciones] = useState<any[]>([])
   const [selectedPlan, setSelectedPlan] = useState<any>(null)
   const [cantidadLiberar, setCantidadLiberar] = useState("")
 
@@ -103,6 +105,10 @@ export default function PlanesDeTrabajo() {
               <TableHead>Fecha</TableHead>
               <TableHead>Producto</TableHead>
               <TableHead>Color</TableHead>
+              <TableHead>LF</TableHead>
+              <TableHead>LP</TableHead>
+              <TableHead>PT</TableHead>
+              <TableHead>Pedido</TableHead>
               <TableHead>Cantidad</TableHead>
               <TableHead>Liberado</TableHead>
               <TableHead>Pendiente</TableHead>
@@ -117,6 +123,10 @@ export default function PlanesDeTrabajo() {
                   <TableCell>{new Date(plan.creado_en).toLocaleDateString()}</TableCell>
                   <TableCell>{plan.producto}</TableCell>
                   <TableCell>{plan.color}</TableCell>
+                  <TableCell>{plan.lf}</TableCell>
+                  <TableCell>{plan.lp}</TableCell>
+                  <TableCell>{plan.pt}</TableCell>
+                  <TableCell>{plan.pedido}</TableCell>
                   <TableCell>{plan.cantidad}</TableCell>
                   <TableCell>{plan.liberado || 0}</TableCell>
                   <TableCell>{pendiente}</TableCell>
@@ -125,6 +135,7 @@ export default function PlanesDeTrabajo() {
                       <Button
                         variant="secondary"
                         onClick={() => {
+                          setHistorialModalOpen(false) // cerrar otro modal si estaba abierto
                           setSelectedPlan(plan)
                           setModalOpen(true)
                         }}
@@ -133,6 +144,21 @@ export default function PlanesDeTrabajo() {
                       </Button>
                     ) : (
                       <span className="text-green-600 font-medium">Completado</span>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={async () => {
+                          const { data } = await supabase
+                            .from("liberaciones")
+                            .select("*")
+                            .eq("plan_id", plan.id)
+                            .order("fecha", { ascending: false })
+                          setLiberaciones(data || [])
+                          setHistorialModalOpen(true)
+                        }}
+                      >
+                        Historial
+                      </Button>
                     )}
                   </TableCell>
                 </TableRow>
@@ -140,7 +166,7 @@ export default function PlanesDeTrabajo() {
             })}
             {planesFiltrados.length === 0 && (
               <TableRow>
-                <TableCell colSpan={7} className="text-center text-muted-foreground">
+                <TableCell colSpan={11} className="text-center text-muted-foreground">
                   No hay registros.
                 </TableCell>
               </TableRow>
@@ -151,12 +177,73 @@ export default function PlanesDeTrabajo() {
     </Card>
   )
 
-  const sillas = planes.filter((p) => p.area === "SILLAS")
+  
+  const [filtro, setFiltro] = useState("")
+
+  const [orden, setOrden] = useState("desc")
+
+  const planesFiltrados = planes
+    .filter((p) => {
+      const q = filtro.toLowerCase()
+      return (
+        p.area &&
+        (
+          p.pedido?.toLowerCase().includes(q) ||
+          p.cliente?.toLowerCase().includes(q) ||
+          p.pt?.toLowerCase().includes(q) ||
+          p.lp?.toLowerCase().includes(q) ||
+          p.producto?.toLowerCase().includes(q) ||
+          p.color?.toLowerCase().includes(q) ||
+          p.lf?.toLowerCase().includes(q)
+        )
+      )
+    })
+    .sort((a, b) => {
+      const fechaA = new Date(a.creado_en).getTime()
+      const fechaB = new Date(b.creado_en).getTime()
+      return orden === "desc" ? fechaB - fechaA : fechaA - fechaB
+    })
+    const q = filtro.toLowerCase()
+    return (
+      p.area &&
+      (p.pedido?.toLowerCase().includes(q) ||
+       p.cliente?.toLowerCase().includes(q) ||
+       p.pt?.toLowerCase().includes(q) ||
+       p.lp?.toLowerCase().includes(q))
+    )
+  })
+
+  const sillas = planesFiltrados.filter((p) => p.area === "SILLAS")
   const salas = planes.filter((p) => p.area === "SALAS")
 
   return (
     <div className="min-h-screen bg-gray-50">
   <main className="max-w-4xl mx-auto py-8 px-4">
+    <div className="mb-4 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+      <Input
+        className="w-full md:w-1/2"
+        placeholder="Buscar por cualquier campo"
+        value={filtro}
+        onChange={(e) => setFiltro(e.target.value)}
+      />
+      <div className="flex items-center gap-2">
+        <label className="text-sm font-medium">Orden:</label>
+        <select
+          value={orden}
+          onChange={(e) => setOrden(e.target.value)}
+          className="border rounded px-2 py-1"
+        >
+          <option value="desc">Más reciente</option>
+          <option value="asc">Más antiguo</option>
+        </select>
+      </div>
+    </div>
+      <Input
+        placeholder="Buscar por PT, LP, Pedido o Cliente"
+        value={filtro}
+        onChange={(e) => setFiltro(e.target.value)}
+      />
+    </div>
       {renderTabla("Planes - SILLAS", sillas)}
       {renderTabla("Planes - SALAS", salas)}
 
@@ -174,6 +261,29 @@ export default function PlanesDeTrabajo() {
               onChange={(e) => setCantidadLiberar(e.target.value)}
             />
             <Button onClick={handleLiberar}>Confirmar Liberación</Button>
+
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal de Historial */}
+      <Dialog open={historialModalOpen} onOpenChange={setHistorialModalOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Historial de Liberaciones</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-2 max-h-60 overflow-y-auto">
+            {liberaciones.length > 0 ? (
+              liberaciones.map((lib) => (
+                <div key={lib.id} className="flex justify-between border-b pb-1 text-sm">
+                  <span>{new Date(lib.fecha).toLocaleString()}</span>
+                  <span className="font-medium">{lib.cantidad} unidades</span>
+                </div>
+              ))
+            ) : (
+              <p className="text-sm text-muted-foreground">Sin registros</p>
+            )}
+
           </div>
         </DialogContent>
       </Dialog>
