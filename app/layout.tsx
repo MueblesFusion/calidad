@@ -10,19 +10,20 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="es">
       <body className={inter.className}>
-        {/* Encabezado en móvil con botón de menú y título */}
-        <header className="lg:hidden flex items-center gap-2 px-4 py-3 shadow bg-white">
+        {/* Header fijo en móvil */}
+        <header className="lg:hidden fixed top-0 left-0 right-0 z-50 flex items-center gap-2 px-4 py-3 shadow bg-white">
           <MobileMenu />
           <span className="font-bold text-lg">Calidad Muebles Fusion</span>
         </header>
 
-        <div className="lg:flex">
-          {/* Sidebar fijo en escritorio */}
+        <div className="lg:flex pt-14 lg:pt-0">
+          {/* Sidebar fijo solo en escritorio */}
           <aside className="hidden lg:block w-64">
             <Sidebar />
           </aside>
 
-          <main className="flex-1 p-4 w-full">
+          {/* Contenido desplazable */}
+          <main className="flex-1 p-4 w-full overflow-auto h-[calc(100vh-3.5rem)] lg:h-screen">
             {children}
             <Toaster />
           </main>
