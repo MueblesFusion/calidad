@@ -24,7 +24,7 @@ export default function MobileMenu() {
       </SheetTrigger>
       <SheetContent side="left" className="w-64">
         <div className="p-4 font-bold text-lg border-b mb-4">
-          Calidad Muebles Fusion
+          Navegación
         </div>
         <nav className="flex flex-col space-y-2">
           {links.map((link) => (
