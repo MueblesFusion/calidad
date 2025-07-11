@@ -13,7 +13,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         {/* Header fijo en móvil */}
         <header className="lg:hidden fixed top-0 left-0 right-0 z-50 flex items-center gap-2 px-4 py-3 shadow bg-white">
           <MobileMenu />
-          <span className="font-bold text-lg">Calidad Muebles Fusion</span>
+          <img src="/logo.png" alt="Calidad Fusion" className="h-8" />
         </header>
 
         <div className="lg:flex pt-14 lg:pt-0">
