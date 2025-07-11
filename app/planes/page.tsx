@@ -21,8 +21,6 @@ export default function PlanesDeTrabajo() {
   const [modalOpen, setModalOpen] = useState(false)
   const [selectedPlan, setSelectedPlan] = useState<any>(null)
   const [cantidadLiberar, setCantidadLiberar] = useState("")
-  const [historialModalOpen, setHistorialModalOpen] = useState(false)
-  const [liberaciones, setLiberaciones] = useState<any[]>([])
 
   const fetchPlanes = async () => {
     const { data, error } = await supabase
@@ -123,33 +121,9 @@ export default function PlanesDeTrabajo() {
                   <TableCell>{plan.liberado || 0}</TableCell>
                   <TableCell>{pendiente}</TableCell>
                   <TableCell>
-                    <>
                     {pendiente > 0 ? (
                       <Button
                         variant="secondary"
-                        onClick={() => {
-                          setSelectedPlan(plan)
-                          setModalOpen(true)
-                          setHistorialModalOpen(false)
-                        }}
-                      >
-                        Liberar
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={async () => {
-                          const { data } = await supabase
-                            .from("liberaciones")
-                            .select("*")
-                            .eq("plan_id", plan.id)
-                            .order("fecha", { ascending: false })
-                          setLiberaciones(data || [])
-                          setHistorialModalOpen(true)
-                        }}
-                      >
-                        Historial
-                      </Button>
                         onClick={() => {
                           setSelectedPlan(plan)
                           setModalOpen(true)
@@ -160,7 +134,6 @@ export default function PlanesDeTrabajo() {
                     ) : (
                       <span className="text-green-600 font-medium">Completado</span>
                     )}
-                    </>
                   </TableCell>
                 </TableRow>
               )
@@ -208,23 +181,3 @@ export default function PlanesDeTrabajo() {
 </div>
   )
 }
-
-      <Dialog open={historialModalOpen} onOpenChange={setHistorialModalOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Historial de Liberaciones</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-2 max-h-60 overflow-y-auto">
-            {liberaciones.length > 0 ? (
-              liberaciones.map((lib) => (
-                <div key={lib.id} className="flex justify-between border-b pb-1 text-sm">
-                  <span>{new Date(lib.fecha).toLocaleString()}</span>
-                  <span className="font-medium">{lib.cantidad} unidades</span>
-                </div>
-              ))
-            ) : (
-              <p className="text-sm text-muted-foreground">Sin registros</p>
-            )}
-          </div>
-        </DialogContent>
-      </Dialog>
