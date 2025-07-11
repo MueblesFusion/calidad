@@ -7,13 +7,11 @@ export default function Sidebar() {
   const pathname = usePathname()
 
   const links = [
-    { href: "/plan", label: "Crear Plan" },
-    { href: "/planes", label: "Planes de Trabajo" },
-  { href: "/", label: "Registrar defecto" },
-  { href: "/dashboard", label: "Dashboard" },
-  
-];
-
+    { name: "Registrar defecto", href: "/" },
+    { name: "Dashboard", href: "/dashboard" },
+    { name: "Crear Plan", href: "/plan" },
+    { name: "Planes de Trabajo", href: "/planes" },
+  ]
 
   return (
     <aside className="w-64 h-full border-r bg-white shadow-sm fixed top-0 left-0">
@@ -34,3 +32,4 @@ export default function Sidebar() {
     </aside>
   )
 }
+
