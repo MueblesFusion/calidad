@@ -2,43 +2,37 @@
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
+import { FilePlus, ClipboardList, AlertTriangle, BarChart3 } from "lucide-react"
 
 export default function Sidebar() {
   const pathname = usePathname()
 
   const links = [
-    { name: "Crear Plan", href: "/plan" },
-    { name: "Planes de Trabajo", href: "/planes" },
-    { name: "Registrar Defecto", href: "/" },
-    { name: "Dashboard", href: "/dashboard" }
+    { name: "Crear Plan", href: "/plan", Icon: FilePlus },
+    { name: "Planes de Trabajo", href: "/planes", Icon: ClipboardList },
+    { name: "Registrar Defecto", href: "/", Icon: AlertTriangle },
+    { name: "Dashboard", href: "/dashboard", Icon: BarChart3 }
   ]
 
   return (
-    <>
-      {/* Título visible en móvil */}
-      <div className="lg:hidden fixed top-0 left-0 w-full bg-white shadow z-20 flex items-center justify-between px-4 py-3">
-      <span className="font-bold">Calidad Muebles Fusion</span>
-      </div>
-
-      {/* Menú lateral visible solo en escritorio */}
-      <aside className="hidden lg:block w-64 h-full border-r bg-white shadow-sm fixed top-0 left-0">
+    <aside className="w-64 h-full border-r bg-white shadow-sm fixed top-0 left-0 hidden lg:block">
       <div className="p-4 border-b flex justify-center">
-  <img src="/logo.png" alt="Calidad Fusion" className="mx-auto" />
-</div>
-        <nav className="p-4 flex flex-col gap-2">
-          {links.map((link) => (
-            <Link
-              key={link.href}
-              href={link.href}
-              className={`px-3 py-2 rounded hover:bg-gray-100 ${
-                pathname === link.href ? "bg-gray-200 font-semibold" : ""
-              }`}
-            >
-              {link.name}
-            </Link>
-          ))}
-        </nav>
-      </aside>
-    </>
+        <img src="/logo.png" alt="Calidad Fusion" className="mx-auto" />
+      </div>
+      <nav className="p-4 flex flex-col gap-2">
+        {links.map(({ name, href, Icon }) => (
+          <Link
+            key={href}
+            href={href}
+            className={`flex items-center px-3 py-2 rounded hover:bg-gray-100 ${
+              pathname === href ? "bg-gray-200 font-semibold" : ""
+            }`}
+          >
+            <Icon className="h-5 w-5 mr-2" />
+            {name}
+          </Link>
+        ))}
+      </nav>
+    </aside>
   )
 }
