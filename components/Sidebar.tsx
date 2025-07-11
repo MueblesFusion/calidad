@@ -17,12 +17,12 @@ export default function Sidebar() {
     <>
       {/* Título visible en móvil */}
       <div className="lg:hidden fixed top-0 left-0 w-full bg-white shadow z-20 flex items-center justify-between px-4 py-3">
-       <img src="/logo.png" alt="Calidad Muebles Fusion" className="h-8" />
+      <span className="font-bold">Calidad Muebles Fusion</span>
       </div>
 
       {/* Menú lateral visible solo en escritorio */}
       <aside className="hidden lg:block w-64 h-full border-r bg-white shadow-sm fixed top-0 left-0">
-        <div className="p-4 font-bold text-xl border-b">Calidad Fusion</div>
+      <img src="/logo.png" alt="Calidad Muebles Fusion" className="h-8" />
         <nav className="p-4 flex flex-col gap-2">
           {links.map((link) => (
             <Link
