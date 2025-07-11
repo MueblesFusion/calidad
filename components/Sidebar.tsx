@@ -7,10 +7,10 @@ export default function Sidebar() {
   const pathname = usePathname()
 
   const links = [
-    { name: "Registrar defecto", href: "/" },
-    { name: "Dashboard", href: "/dashboard" },
     { name: "Crear Plan", href: "/plan" },
     { name: "Planes de Trabajo", href: "/planes" },
+    { name: "Registrar defecto", href: "/" },
+    { name: "Dashboard", href: "/dashboard" }
   ]
 
   return (
@@ -32,4 +32,3 @@ export default function Sidebar() {
     </aside>
   )
 }
-
