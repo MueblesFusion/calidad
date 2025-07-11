@@ -14,14 +14,7 @@ export const metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="es">
-      
-        <body className="flex">
-            <div className="md:hidden fixed top-0 left-0 z-50">
-              <button id="menu-button" className="p-4">
-                <Menu size={32} />
-              </button>
-            </div>
-         className={inter.className}>
+      <body className={inter.className}>
         <div className="lg:flex">
           <Sidebar />
           <main className="w-full lg:ml-64 p-4">{children}</main>
