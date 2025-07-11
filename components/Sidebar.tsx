@@ -22,7 +22,9 @@ export default function Sidebar() {
 
       {/* Menú lateral visible solo en escritorio */}
       <aside className="hidden lg:block w-64 h-full border-r bg-white shadow-sm fixed top-0 left-0">
-      <img src="/logo.png" alt="Calidad Muebles Fusion" className="h-8" />
+      <div className="p-4 border-b flex justify-center">
+  <img src="/logo.png" alt="Calidad Fusion" className="mx-auto" />
+</div>
         <nav className="p-4 flex flex-col gap-2">
           {links.map((link) => (
             <Link
