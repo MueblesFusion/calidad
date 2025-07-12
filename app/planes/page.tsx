@@ -2,8 +2,8 @@
 
 import { useEffect, useState } from "react"
 import { getAllPlanes } from "@/lib/supabase/planes"
+import { registrarLiberacion } from "@/lib/supabase/liberaciones"
 import { Button } from "@/components/ui/button"
-import { updateLiberado } from "@/lib/supabase/liberaciones" // <-- Asegúrate de tener esta función o coméntala por ahora
 
 export default function PlanesAgrupadosPage() {
   const [planes, setPlanes] = useState<any[]>([])
@@ -33,17 +33,21 @@ export default function PlanesAgrupadosPage() {
       return
     }
 
-    // Aquí puedes llamar a tu función para actualizar en Supabase
-    // await updateLiberado(plan.id, nuevoLiberado)
+    try {
+      await registrarLiberacion(plan.id, cantidadLiberar, nuevoLiberado)
 
-    alert(`Liberaste ${cantidadLiberar} piezas. Pendiente: ${pendiente}`)
+      alert(`Liberaste ${cantidadLiberar} piezas. Pendiente: ${pendiente}`)
 
-    // Actualizar localmente
-    setPlanes(prev =>
-      prev.map(p =>
-        p.id === plan.id ? { ...p, liberado: nuevoLiberado } : p
+      // Actualizar en pantalla
+      setPlanes(prev =>
+        prev.map(p =>
+          p.id === plan.id ? { ...p, liberado: nuevoLiberado } : p
+        )
       )
-    )
+    } catch (error) {
+      console.error("Error al registrar liberación:", error)
+      alert("Ocurrió un error al registrar la liberación.")
+    }
   }
 
   const renderTablaPorArea = (area: string) => {
@@ -105,8 +109,4 @@ export default function PlanesAgrupadosPage() {
   return (
     <div className="p-4">
       <h1 className="text-2xl font-bold mb-6">Planes de Trabajo</h1>
-      {renderTablaPorArea("SILLAS")}
-      {renderTablaPorArea("SALAS")}
-    </div>
-  )
-}
+      {renderTablaPorArea("SILLA
