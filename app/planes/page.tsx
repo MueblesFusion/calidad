@@ -109,4 +109,8 @@ export default function PlanesAgrupadosPage() {
   return (
     <div className="p-4">
       <h1 className="text-2xl font-bold mb-6">Planes de Trabajo</h1>
-      {renderTablaPorArea("SILLA
+      {renderTablaPorArea("SILLAS")}
+      {renderTablaPorArea("SALAS")}
+    </div>
+  )
+}
