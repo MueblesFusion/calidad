@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react"
 import { getAllPlanes } from "@/lib/supabase/planes"
 import { Button } from "@/components/ui/button"
+import { updateLiberado } from "@/lib/supabase/liberaciones" // <-- Asegúrate de tener esta función o coméntala por ahora
 
 export default function PlanesAgrupadosPage() {
   const [planes, setPlanes] = useState<any[]>([])
@@ -14,6 +15,36 @@ export default function PlanesAgrupadosPage() {
     }
     fetchPlanes()
   }, [])
+
+  const handleLiberar = async (plan: any) => {
+    const cantidadStr = prompt(`¿Cuántas piezas quieres liberar del plan PT ${plan.pt}?`)
+    const cantidadLiberar = parseInt(cantidadStr || "", 10)
+
+    if (isNaN(cantidadLiberar) || cantidadLiberar <= 0) {
+      alert("Por favor ingresa una cantidad válida.")
+      return
+    }
+
+    const nuevoLiberado = plan.liberado + cantidadLiberar
+    const pendiente = plan.cantidad - nuevoLiberado
+
+    if (nuevoLiberado > plan.cantidad) {
+      alert("No puedes liberar más de lo planeado.")
+      return
+    }
+
+    // Aquí puedes llamar a tu función para actualizar en Supabase
+    // await updateLiberado(plan.id, nuevoLiberado)
+
+    alert(`Liberaste ${cantidadLiberar} piezas. Pendiente: ${pendiente}`)
+
+    // Actualizar localmente
+    setPlanes(prev =>
+      prev.map(p =>
+        p.id === plan.id ? { ...p, liberado: nuevoLiberado } : p
+      )
+    )
+  }
 
   const renderTablaPorArea = (area: string) => {
     const planesFiltrados = planes.filter((p) => p.area === area)
@@ -58,7 +89,7 @@ export default function PlanesAgrupadosPage() {
                     {plan.cantidad - plan.liberado}
                   </td>
                   <td className="px-4 py-2">
-                    <Button size="sm" variant="outline">
+                    <Button size="sm" variant="outline" onClick={() => handleLiberar(plan)}>
                       Liberar
                     </Button>
                   </td>
