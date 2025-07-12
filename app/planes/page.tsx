@@ -54,9 +54,13 @@ export default function PlanesAgrupadosPage() {
                   <td className="px-4 py-2">{plan.pedido}</td>
                   <td className="px-4 py-2">{plan.cliente}</td>
                   <td className="px-4 py-2">{plan.liberado}</td>
-                  <td className="px-4 py-2">{plan.cantidad - plan.liberado}</td>
                   <td className="px-4 py-2">
-                    <Button size="sm" variant="outline">Liberar</Button>
+                    {plan.cantidad - plan.liberado}
+                  </td>
+                  <td className="px-4 py-2">
+                    <Button size="sm" variant="outline">
+                      Liberar
+                    </Button>
                   </td>
                 </tr>
               ))}
