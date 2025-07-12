@@ -1,14 +1,22 @@
-// lib/supabase/liberaciones.ts
 import { supabase } from "../supabase"
 
-export async function updateLiberado(id: number, liberado: number) {
-  const { error } = await supabase
-    .from("planes_trabajo")
-    .update({ liberado })
-    .eq("id", id)
+export async function registrarLiberacion(planId: number, cantidad: number, nuevoLiberado: number) {
+  // 1. Insertar en historial
+  const { error: insertError } = await supabase.from("liberaciones").insert([
+    {
+      plan_id: planId,
+      cantidad,
+      usuario: "capturista", // puedes cambiar por usuario dinámico más adelante
+    },
+  ])
 
-  if (error) {
-    console.error("Error actualizando liberado:", error)
-    throw error
-  }
+  if (insertError) throw insertError
+
+  // 2. Actualizar campo 'liberado' en planes_trabajo
+  const { error: updateError } = await supabase
+    .from("planes_trabajo")
+    .update({ liberado: nuevoLiberado })
+    .eq("id", planId)
+
+  if (updateError) throw updateError
 }
