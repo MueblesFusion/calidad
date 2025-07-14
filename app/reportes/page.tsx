@@ -1,27 +1,26 @@
 "use client"
 
 import React, { useState, useEffect } from "react"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import {
+  Card,
+  CardHeader,
+  CardTitle,
+  CardContent,
+} from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { format } from "date-fns"
-import { toast } from "@/hooks/use-toast"
-import { supabase } from "@/lib/supabaseClient" // Asumo tienes este archivo para la instancia supabase
-import { ExportToCsv } from "export-to-csv"
-import { X } from "lucide-react"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
+import { useToast } from "@/hooks/use-toast"
+import { Download, X } from "lucide-react"
+import Image from "next/image"
+import { createClient } from "@supabase/supabase-js"
+import * as XLSX from "xlsx"
 
-type DefectPhoto = {
-  id: string
-  report_id: string
-  foto_url: string
-  created_at: string
-}
-
-type DefectReport = {
+type Report = {
   id: string
   fecha: string
-  area: string
+  area: "SILLAS" | "SALAS" | string
   producto: string
   color: string
   lf: string
@@ -31,295 +30,321 @@ type DefectReport = {
   cliente: string
   defecto: string
   descripcion: string
-  created_at: string
-  photos?: DefectPhoto[]
 }
 
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+)
+
 export default function ReportesPage() {
-  const [reports, setReports] = useState<DefectReport[]>([])
-  const [filteredReports, setFilteredReports] = useState<DefectReport[]>([])
-  const [search, setSearch] = useState("")
-  const [startDate, setStartDate] = useState("")
-  const [endDate, setEndDate] = useState("")
-  const [selectedReport, setSelectedReport] = useState<DefectReport | null>(null)
-  const [loading, setLoading] = useState(false)
+  const { toast } = useToast()
+
+  const [reports, setReports] = useState<Report[]>([])
+  const [filteredReports, setFilteredReports] = useState<Report[]>([])
+  const [filterCliente, setFilterCliente] = useState("")
+  const [filterPedido, setFilterPedido] = useState("")
+  const [filterFecha, setFilterFecha] = useState("")
+
+  const [modalOpen, setModalOpen] = useState(false)
+  const [fotoSeleccionada, setFotoSeleccionada] = useState<string[]>([])
+
+  // Carga todos los reportes
+  async function fetchReports() {
+    const { data, error } = await supabase
+      .from("defect_reports")
+      .select("*")
+      .order("fecha", { ascending: false })
+
+    if (error) {
+      toast({
+        title: "Error",
+        description: "No se pudieron cargar los reportes",
+        variant: "destructive",
+      })
+      return
+    }
+
+    setReports(data as Report[])
+    setFilteredReports(data as Report[])
+  }
+
+  // Filtra según inputs
+  useEffect(() => {
+    let filtered = reports
+
+    if (filterCliente.trim() !== "") {
+      filtered = filtered.filter((r) =>
+        r.cliente.toLowerCase().includes(filterCliente.toLowerCase())
+      )
+    }
+
+    if (filterPedido.trim() !== "") {
+      filtered = filtered.filter((r) =>
+        r.pedido.toLowerCase().includes(filterPedido.toLowerCase())
+      )
+    }
+
+    if (filterFecha.trim() !== "") {
+      filtered = filtered.filter((r) => r.fecha === filterFecha)
+    }
+
+    setFilteredReports(filtered)
+  }, [filterCliente, filterPedido, filterFecha, reports])
+
+  // Obtener fotos de un reporte
+  async function obtenerFotos(reportId: string) {
+    const { data, error } = await supabase
+      .from("defect_report_photos")
+      .select("foto_url")
+      .eq("report_id", reportId)
+
+    if (error) {
+      toast({
+        title: "Error",
+        description: "No se pudieron cargar las fotos",
+        variant: "destructive",
+      })
+      return
+    }
+
+    if (data && data.length > 0) {
+      setFotoSeleccionada(data.map((d) => d.foto_url))
+      setModalOpen(true)
+    } else {
+      toast({
+        title: "Sin Fotos",
+        description: "Este reporte no tiene fotos asociadas",
+      })
+    }
+  }
+
+  // Exportar a Excel filtrado por área
+  function exportToExcel(area: string) {
+    const dataToExport = filteredReports.filter((r) => r.area === area)
+
+    if (dataToExport.length === 0) {
+      toast({
+        title: "Sin datos",
+        description: `No hay reportes para exportar en ${area}`,
+        variant: "destructive",
+      })
+      return
+    }
+
+    // Mapeamos para formato legible en Excel
+    const worksheetData = dataToExport.map((r) => ({
+      Fecha: r.fecha,
+      Área: r.area,
+      Producto: r.producto,
+      Color: r.color,
+      LF: r.lf,
+      PT: r.pt,
+      LP: r.lp,
+      Pedido: r.pedido,
+      Cliente: r.cliente,
+      Defecto: r.defecto,
+      Descripción: r.descripcion,
+    }))
+
+    const worksheet = XLSX.utils.json_to_sheet(worksheetData)
+    const workbook = XLSX.utils.book_new()
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Reportes")
+
+    XLSX.writeFile(workbook, `Reportes_${area}_${new Date().toISOString().split("T")[0]}.xlsx`)
+  }
 
   useEffect(() => {
     fetchReports()
   }, [])
 
-  async function fetchReports() {
-    setLoading(true)
-    try {
-      // Traemos defectos con sus fotos (left join simulada)
-      const { data, error } = await supabase
-        .from("defect_reports")
-        .select(`
-          *,
-          defect_report_photos (
-            id,
-            report_id,
-            foto_url,
-            created_at
-          )
-        `)
-        .order("fecha", { ascending: false })
-
-      if (error) throw error
-      setReports(data || [])
-      setFilteredReports(data || [])
-    } catch (error) {
-      toast({
-        title: "Error al cargar reportes",
-        description: (error as any).message || "Intenta de nuevo.",
-        variant: "destructive",
-      })
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  // Filtrado simple por texto y fechas
-  useEffect(() => {
-    let filtered = [...reports]
-
-    if (startDate && endDate) {
-      filtered = filtered.filter((r) => r.fecha >= startDate && r.fecha <= endDate)
-    }
-    if (search.trim()) {
-      const s = search.toLowerCase()
-      filtered = filtered.filter(
-        (r) =>
-          r.cliente.toLowerCase().includes(s) ||
-          r.pedido.toLowerCase().includes(s) ||
-          r.defecto.toLowerCase().includes(s)
-      )
-    }
-    setFilteredReports(filtered)
-  }, [search, startDate, endDate, reports])
-
-  function exportToCsv(areaFilter: string) {
-    const dataToExport = filteredReports
-      .filter((r) => r.area === areaFilter)
-      .map((r) => ({
-        Fecha: r.fecha,
-        Área: r.area,
-        Producto: r.producto,
-        Color: r.color,
-        LF: r.lf,
-        PT: r.pt,
-        LP: r.lp,
-        Pedido: r.pedido,
-        Cliente: r.cliente,
-        Defecto: r.defecto,
-        Descripción: r.descripcion,
-        Fotos: r.photos ? r.photos.map((p) => p.foto_url).join(", ") : "",
-      }))
-
-    const options = {
-      filename: `Reportes_${areaFilter}_${format(new Date(), "yyyyMMdd_HHmmss")}`,
-      fieldSeparator: ",",
-      quoteStrings: '"',
-      decimalSeparator: ".",
-      showLabels: true,
-      showTitle: true,
-      title: `Reportes de Defectos - ${areaFilter}`,
-      useTextFile: false,
-      useBom: true,
-      useKeysAsHeaders: true,
-    }
-
-    const csvExporter = new ExportToCsv(options)
-    csvExporter.generateCsv(dataToExport)
-  }
+  // Separar reportes por área para mostrar en cards
+  const sillasReports = filteredReports.filter((r) => r.area === "SILLAS")
+  const salasReports = filteredReports.filter((r) => r.area === "SALAS")
 
   return (
-    <div className="min-h-screen p-4 bg-gray-50">
-      <h1 className="text-2xl font-bold mb-6 text-center">Lista de Reportes de Defectos</h1>
+    <div className="min-h-screen bg-gray-50 p-4">
+      <div className="max-w-7xl mx-auto space-y-8">
 
-      {/* Filtros */}
-      <div className="max-w-4xl mx-auto mb-8 grid grid-cols-1 md:grid-cols-4 gap-4">
-        <Input
-          type="date"
-          value={startDate}
-          onChange={(e) => setStartDate(e.target.value)}
-          placeholder="Fecha inicio"
-        />
-        <Input
-          type="date"
-          value={endDate}
-          onChange={(e) => setEndDate(e.target.value)}
-          placeholder="Fecha fin"
-        />
-        <Input
-          type="text"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          placeholder="Buscar por cliente, pedido o defecto"
-          className="md:col-span-2"
-        />
-      </div>
-
-      {/* Cards para SILLAS y SALAS */}
-      <div className="max-w-6xl mx-auto grid gap-8 md:grid-cols-2">
-        {/* SILLAS */}
-        <Card>
-          <CardHeader className="flex justify-between items-center">
-            <CardTitle>Defectos SILLAS</CardTitle>
-            <Button variant="outline" className="text-green-600 border-green-600" onClick={() => exportToCsv("SILLAS")}>
-              Exportar Excel
-            </Button>
-          </CardHeader>
-          <CardContent>
-            {loading ? (
-              <p>Cargando...</p>
-            ) : filteredReports.filter((r) => r.area === "SILLAS").length === 0 ? (
-              <p className="text-center text-gray-500">No hay defectos registrados para SILLAS</p>
-            ) : (
-              <table className="w-full table-auto border border-gray-300">
-                <thead>
-                  <tr className="bg-gray-100">
-                    <th className="border px-2 py-1 text-left">Fecha</th>
-                    <th className="border px-2 py-1 text-left">Producto</th>
-                    <th className="border px-2 py-1 text-left">Color</th>
-                    <th className="border px-2 py-1 text-left">LF</th>
-                    <th className="border px-2 py-1 text-left">PT</th>
-                    <th className="border px-2 py-1 text-left">LP</th>
-                    <th className="border px-2 py-1 text-left">Pedido</th>
-                    <th className="border px-2 py-1 text-left">Cliente</th>
-                    <th className="border px-2 py-1 text-left">Defecto</th>
-                    <th className="border px-2 py-1 text-left">Descripción</th>
-                    <th className="border px-2 py-1 text-center">Fotos</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredReports
-                    .filter((r) => r.area === "SILLAS")
-                    .map((report) => (
-                      <tr key={report.id} className="hover:bg-gray-50">
-                        <td className="border px-2 py-1">{report.fecha}</td>
-                        <td className="border px-2 py-1">{report.producto}</td>
-                        <td className="border px-2 py-1">{report.color}</td>
-                        <td className="border px-2 py-1">{report.lf}</td>
-                        <td className="border px-2 py-1">{report.pt}</td>
-                        <td className="border px-2 py-1">{report.lp}</td>
-                        <td className="border px-2 py-1">{report.pedido}</td>
-                        <td className="border px-2 py-1">{report.cliente}</td>
-                        <td className="border px-2 py-1">{report.defecto}</td>
-                        <td className="border px-2 py-1">{report.descripcion}</td>
-                        <td className="border px-2 py-1 text-center">
-                          <Button size="sm" onClick={() => setSelectedReport(report)}>
-                            Ver Fotos
-                          </Button>
-                        </td>
-                      </tr>
-                    ))}
-                </tbody>
-              </table>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* SALAS */}
-        <Card>
-          <CardHeader className="flex justify-between items-center">
-            <CardTitle>Defectos SALAS</CardTitle>
-            <Button variant="outline" className="text-green-600 border-green-600" onClick={() => exportToCsv("SALAS")}>
-              Exportar Excel
-            </Button>
-          </CardHeader>
-          <CardContent>
-            {loading ? (
-              <p>Cargando...</p>
-            ) : filteredReports.filter((r) => r.area === "SALAS").length === 0 ? (
-              <p className="text-center text-gray-500">No hay defectos registrados para SALAS</p>
-            ) : (
-              <table className="w-full table-auto border border-gray-300">
-                <thead>
-                  <tr className="bg-gray-100">
-                    <th className="border px-2 py-1 text-left">Fecha</th>
-                    <th className="border px-2 py-1 text-left">Producto</th>
-                    <th className="border px-2 py-1 text-left">Color</th>
-                    <th className="border px-2 py-1 text-left">LF</th>
-                    <th className="border px-2 py-1 text-left">PT</th>
-                    <th className="border px-2 py-1 text-left">LP</th>
-                    <th className="border px-2 py-1 text-left">Pedido</th>
-                    <th className="border px-2 py-1 text-left">Cliente</th>
-                    <th className="border px-2 py-1 text-left">Defecto</th>
-                    <th className="border px-2 py-1 text-left">Descripción</th>
-                    <th className="border px-2 py-1 text-center">Fotos</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredReports
-                    .filter((r) => r.area === "SALAS")
-                    .map((report) => (
-                      <tr key={report.id} className="hover:bg-gray-50">
-                        <td className="border px-2 py-1">{report.fecha}</td>
-                        <td className="border px-2 py-1">{report.producto}</td>
-                        <td className="border px-2 py-1">{report.color}</td>
-                        <td className="border px-2 py-1">{report.lf}</td>
-                        <td className="border px-2 py-1">{report.pt}</td>
-                        <td className="border px-2 py-1">{report.lp}</td>
-                        <td className="border px-2 py-1">{report.pedido}</td>
-                        <td className="border px-2 py-1">{report.cliente}</td>
-                        <td className="border px-2 py-1">{report.defecto}</td>
-                        <td className="border px-2 py-1">{report.descripcion}</td>
-                        <td className="border px-2 py-1 text-center">
-                          <Button size="sm" onClick={() => setSelectedReport(report)}>
-                            Ver Fotos
-                          </Button>
-                        </td>
-                      </tr>
-                    ))}
-                </tbody>
-              </table>
-            )}
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Modal fotos */}
-      {selectedReport && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4"
-          onClick={() => setSelectedReport(null)} // cerrar modal al click fuera
-        >
-          <div
-            className="bg-white rounded-lg max-w-3xl w-full max-h-[80vh] overflow-auto p-6"
-            onClick={(e) => e.stopPropagation()} // evitar cerrar al click dentro
-          >
-            <div className="flex justify-between items-center mb-4">
-              <h3 className="text-lg font-bold">Fotos del Reporte</h3>
-              <button
-                onClick={() => setSelectedReport(null)}
-                aria-label="Cerrar modal"
-                className="text-gray-600 hover:text-gray-900"
-              >
-                <X size={24} />
-              </button>
+        {/* Filtros */}
+        <Card className="p-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div>
+              <Label htmlFor="filterFecha">Fecha</Label>
+              <Input
+                type="date"
+                id="filterFecha"
+                value={filterFecha}
+                onChange={(e) => setFilterFecha(e.target.value)}
+              />
             </div>
-
-            <div className="grid grid-cols-3 gap-4 max-h-[60vh] overflow-auto">
-              {selectedReport.photos && selectedReport.photos.length > 0 ? (
-                selectedReport.photos.map((photo) => (
-                  <img
-                    key={photo.id}
-                    src={photo.foto_url}
-                    alt="Foto defecto"
-                    className="cursor-pointer object-cover rounded border border-gray-300 hover:scale-105 transition-transform"
-                    style={{ width: 120, height: 120 }}
-                    onClick={() => window.open(photo.foto_url, "_blank")}
-                    loading="lazy"
-                  />
-                ))
-              ) : (
-                <p>No hay fotos para este reporte.</p>
-              )}
+            <div>
+              <Label htmlFor="filterCliente">Cliente</Label>
+              <Input
+                id="filterCliente"
+                placeholder="Buscar por cliente"
+                value={filterCliente}
+                onChange={(e) => setFilterCliente(e.target.value)}
+              />
+            </div>
+            <div>
+              <Label htmlFor="filterPedido">Pedido</Label>
+              <Input
+                id="filterPedido"
+                placeholder="Buscar por pedido"
+                value={filterPedido}
+                onChange={(e) => setFilterPedido(e.target.value)}
+              />
             </div>
           </div>
-        </div>
-      )}
+        </Card>
+
+        {/* Card para SILLAS */}
+        <Card>
+          <CardHeader className="flex justify-between items-center">
+            <CardTitle>Defectos - SILLAS</CardTitle>
+            <Button
+              className="bg-green-600 hover:bg-green-700 flex items-center"
+              onClick={() => exportToExcel("SILLAS")}
+            >
+              <Download className="mr-2 h-4 w-4" />
+              Exportar Excel
+            </Button>
+          </CardHeader>
+          <CardContent>
+            {sillasReports.length === 0 ? (
+              <p>No hay reportes de SILLAS.</p>
+            ) : (
+              <table className="w-full border border-gray-300 text-sm">
+                <thead className="bg-gray-100">
+                  <tr>
+                    <th className="border px-2 py-1">Fecha</th>
+                    <th className="border px-2 py-1">Producto</th>
+                    <th className="border px-2 py-1">Color</th>
+                    <th className="border px-2 py-1">LF</th>
+                    <th className="border px-2 py-1">PT</th>
+                    <th className="border px-2 py-1">LP</th>
+                    <th className="border px-2 py-1">Pedido</th>
+                    <th className="border px-2 py-1">Cliente</th>
+                    <th className="border px-2 py-1">Defecto</th>
+                    <th className="border px-2 py-1">Descripción</th>
+                    <th className="border px-2 py-1">Acciones</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {sillasReports.map((r) => (
+                    <tr key={r.id}>
+                      <td className="border px-2 py-1">{r.fecha}</td>
+                      <td className="border px-2 py-1">{r.producto}</td>
+                      <td className="border px-2 py-1">{r.color}</td>
+                      <td className="border px-2 py-1">{r.lf}</td>
+                      <td className="border px-2 py-1">{r.pt}</td>
+                      <td className="border px-2 py-1">{r.lp}</td>
+                      <td className="border px-2 py-1">{r.pedido}</td>
+                      <td className="border px-2 py-1">{r.cliente}</td>
+                      <td className="border px-2 py-1">{r.defecto}</td>
+                      <td className="border px-2 py-1">{r.descripcion}</td>
+                      <td className="border px-2 py-1 text-center">
+                        <Button size="sm" onClick={() => obtenerFotos(r.id)}>
+                          Ver Fotos
+                        </Button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Card para SALAS */}
+        <Card>
+          <CardHeader className="flex justify-between items-center">
+            <CardTitle>Defectos - SALAS</CardTitle>
+            <Button
+              className="bg-green-600 hover:bg-green-700 flex items-center"
+              onClick={() => exportToExcel("SALAS")}
+            >
+              <Download className="mr-2 h-4 w-4" />
+              Exportar Excel
+            </Button>
+          </CardHeader>
+          <CardContent>
+            {salasReports.length === 0 ? (
+              <p>No hay reportes de SALAS.</p>
+            ) : (
+              <table className="w-full border border-gray-300 text-sm">
+                <thead className="bg-gray-100">
+                  <tr>
+                    <th className="border px-2 py-1">Fecha</th>
+                    <th className="border px-2 py-1">Producto</th>
+                    <th className="border px-2 py-1">Color</th>
+                    <th className="border px-2 py-1">LF</th>
+                    <th className="border px-2 py-1">PT</th>
+                    <th className="border px-2 py-1">LP</th>
+                    <th className="border px-2 py-1">Pedido</th>
+                    <th className="border px-2 py-1">Cliente</th>
+                    <th className="border px-2 py-1">Defecto</th>
+                    <th className="border px-2 py-1">Descripción</th>
+                    <th className="border px-2 py-1">Acciones</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {salasReports.map((r) => (
+                    <tr key={r.id}>
+                      <td className="border px-2 py-1">{r.fecha}</td>
+                      <td className="border px-2 py-1">{r.producto}</td>
+                      <td className="border px-2 py-1">{r.color}</td>
+                      <td className="border px-2 py-1">{r.lf}</td>
+                      <td className="border px-2 py-1">{r.pt}</td>
+                      <td className="border px-2 py-1">{r.lp}</td>
+                      <td className="border px-2 py-1">{r.pedido}</td>
+                      <td className="border px-2 py-1">{r.cliente}</td>
+                      <td className="border px-2 py-1">{r.defecto}</td>
+                      <td className="border px-2 py-1">{r.descripcion}</td>
+                      <td className="border px-2 py-1 text-center">
+                        <Button size="sm" onClick={() => obtenerFotos(r.id)}>
+                          Ver Fotos
+                        </Button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Modal fotos */}
+        <Dialog open={modalOpen} onOpenChange={setModalOpen}>
+          <DialogContent className="max-w-4xl">
+            <DialogHeader>
+              <DialogTitle>Fotos del Reporte</DialogTitle>
+              <button
+                onClick={() => setModalOpen(false)}
+                className="absolute top-3 right-3"
+                aria-label="Cerrar"
+              >
+                <X className="h-6 w-6" />
+              </button>
+            </DialogHeader>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4">
+              {fotoSeleccionada.length === 0 && <p>No hay fotos para mostrar.</p>}
+              {fotoSeleccionada.map((url, idx) => (
+                <div key={idx} className="rounded overflow-hidden border">
+                  <Image
+                    src={url}
+                    alt={`Foto ${idx + 1}`}
+                    width={400}
+                    height={400}
+                    className="object-contain"
+                  />
+                </div>
+              ))}
+            </div>
+          </DialogContent>
+        </Dialog>
+      </div>
     </div>
   )
 }
