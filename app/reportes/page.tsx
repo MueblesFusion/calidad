@@ -10,7 +10,7 @@ import {
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { useToast } from "@/hooks/use-toast"
 import { Download, X } from "lucide-react"
 import Image from "next/image"
@@ -49,7 +49,6 @@ export default function ReportesPage() {
   const [modalOpen, setModalOpen] = useState(false)
   const [fotoSeleccionada, setFotoSeleccionada] = useState<string[]>([])
 
-  // Carga todos los reportes
   async function fetchReports() {
     const { data, error } = await supabase
       .from("defect_reports")
@@ -69,7 +68,6 @@ export default function ReportesPage() {
     setFilteredReports(data as Report[])
   }
 
-  // Filtra según inputs
   useEffect(() => {
     let filtered = reports
 
@@ -92,7 +90,6 @@ export default function ReportesPage() {
     setFilteredReports(filtered)
   }, [filterCliente, filterPedido, filterFecha, reports])
 
-  // Obtener fotos de un reporte
   async function obtenerFotos(reportId: string) {
     const { data, error } = await supabase
       .from("defect_report_photos")
@@ -119,7 +116,6 @@ export default function ReportesPage() {
     }
   }
 
-  // Exportar a Excel filtrado por área
   function exportToExcel(area: string) {
     const dataToExport = filteredReports.filter((r) => r.area === area)
 
@@ -132,7 +128,6 @@ export default function ReportesPage() {
       return
     }
 
-    // Mapeamos para formato legible en Excel
     const worksheetData = dataToExport.map((r) => ({
       Fecha: r.fecha,
       Área: r.area,
@@ -158,7 +153,6 @@ export default function ReportesPage() {
     fetchReports()
   }, [])
 
-  // Separar reportes por área para mostrar en cards
   const sillasReports = filteredReports.filter((r) => r.area === "SILLAS")
   const salasReports = filteredReports.filter((r) => r.area === "SALAS")
 
@@ -166,7 +160,6 @@ export default function ReportesPage() {
     <div className="min-h-screen bg-gray-50 p-4">
       <div className="max-w-7xl mx-auto space-y-8">
 
-        {/* Filtros */}
         <Card className="p-4">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
@@ -199,7 +192,6 @@ export default function ReportesPage() {
           </div>
         </Card>
 
-        {/* Card para SILLAS */}
         <Card>
           <CardHeader className="flex justify-between items-center">
             <CardTitle>Defectos - SILLAS</CardTitle>
@@ -215,49 +207,50 @@ export default function ReportesPage() {
             {sillasReports.length === 0 ? (
               <p>No hay reportes de SILLAS.</p>
             ) : (
-              <table className="w-full border border-gray-300 text-sm">
-                <thead className="bg-gray-100">
-                  <tr>
-                    <th className="border px-2 py-1">Fecha</th>
-                    <th className="border px-2 py-1">Producto</th>
-                    <th className="border px-2 py-1">Color</th>
-                    <th className="border px-2 py-1">LF</th>
-                    <th className="border px-2 py-1">PT</th>
-                    <th className="border px-2 py-1">LP</th>
-                    <th className="border px-2 py-1">Pedido</th>
-                    <th className="border px-2 py-1">Cliente</th>
-                    <th className="border px-2 py-1">Defecto</th>
-                    <th className="border px-2 py-1">Descripción</th>
-                    <th className="border px-2 py-1">Acciones</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {sillasReports.map((r) => (
-                    <tr key={r.id}>
-                      <td className="border px-2 py-1">{r.fecha}</td>
-                      <td className="border px-2 py-1">{r.producto}</td>
-                      <td className="border px-2 py-1">{r.color}</td>
-                      <td className="border px-2 py-1">{r.lf}</td>
-                      <td className="border px-2 py-1">{r.pt}</td>
-                      <td className="border px-2 py-1">{r.lp}</td>
-                      <td className="border px-2 py-1">{r.pedido}</td>
-                      <td className="border px-2 py-1">{r.cliente}</td>
-                      <td className="border px-2 py-1">{r.defecto}</td>
-                      <td className="border px-2 py-1">{r.descripcion}</td>
-                      <td className="border px-2 py-1 text-center">
-                        <Button size="sm" onClick={() => obtenerFotos(r.id)}>
-                          Ver Fotos
-                        </Button>
-                      </td>
+              <div className="overflow-x-auto">
+                <table className="w-full border border-gray-300 text-sm min-w-[900px]">
+                  <thead className="bg-gray-100">
+                    <tr>
+                      <th className="border px-2 py-1">Fecha</th>
+                      <th className="border px-2 py-1">Producto</th>
+                      <th className="border px-2 py-1">Color</th>
+                      <th className="border px-2 py-1">LF</th>
+                      <th className="border px-2 py-1">PT</th>
+                      <th className="border px-2 py-1">LP</th>
+                      <th className="border px-2 py-1">Pedido</th>
+                      <th className="border px-2 py-1">Cliente</th>
+                      <th className="border px-2 py-1">Defecto</th>
+                      <th className="border px-2 py-1">Descripción</th>
+                      <th className="border px-2 py-1">Acciones</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody>
+                    {sillasReports.map((r) => (
+                      <tr key={r.id}>
+                        <td className="border px-2 py-1">{r.fecha}</td>
+                        <td className="border px-2 py-1">{r.producto}</td>
+                        <td className="border px-2 py-1">{r.color}</td>
+                        <td className="border px-2 py-1">{r.lf}</td>
+                        <td className="border px-2 py-1">{r.pt}</td>
+                        <td className="border px-2 py-1">{r.lp}</td>
+                        <td className="border px-2 py-1">{r.pedido}</td>
+                        <td className="border px-2 py-1">{r.cliente}</td>
+                        <td className="border px-2 py-1">{r.defecto}</td>
+                        <td className="border px-2 py-1">{r.descripcion}</td>
+                        <td className="border px-2 py-1 text-center">
+                          <Button size="sm" onClick={() => obtenerFotos(r.id)}>
+                            Ver Fotos
+                          </Button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             )}
           </CardContent>
         </Card>
 
-        {/* Card para SALAS */}
         <Card>
           <CardHeader className="flex justify-between items-center">
             <CardTitle>Defectos - SALAS</CardTitle>
@@ -273,49 +266,50 @@ export default function ReportesPage() {
             {salasReports.length === 0 ? (
               <p>No hay reportes de SALAS.</p>
             ) : (
-              <table className="w-full border border-gray-300 text-sm">
-                <thead className="bg-gray-100">
-                  <tr>
-                    <th className="border px-2 py-1">Fecha</th>
-                    <th className="border px-2 py-1">Producto</th>
-                    <th className="border px-2 py-1">Color</th>
-                    <th className="border px-2 py-1">LF</th>
-                    <th className="border px-2 py-1">PT</th>
-                    <th className="border px-2 py-1">LP</th>
-                    <th className="border px-2 py-1">Pedido</th>
-                    <th className="border px-2 py-1">Cliente</th>
-                    <th className="border px-2 py-1">Defecto</th>
-                    <th className="border px-2 py-1">Descripción</th>
-                    <th className="border px-2 py-1">Acciones</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {salasReports.map((r) => (
-                    <tr key={r.id}>
-                      <td className="border px-2 py-1">{r.fecha}</td>
-                      <td className="border px-2 py-1">{r.producto}</td>
-                      <td className="border px-2 py-1">{r.color}</td>
-                      <td className="border px-2 py-1">{r.lf}</td>
-                      <td className="border px-2 py-1">{r.pt}</td>
-                      <td className="border px-2 py-1">{r.lp}</td>
-                      <td className="border px-2 py-1">{r.pedido}</td>
-                      <td className="border px-2 py-1">{r.cliente}</td>
-                      <td className="border px-2 py-1">{r.defecto}</td>
-                      <td className="border px-2 py-1">{r.descripcion}</td>
-                      <td className="border px-2 py-1 text-center">
-                        <Button size="sm" onClick={() => obtenerFotos(r.id)}>
-                          Ver Fotos
-                        </Button>
-                      </td>
+              <div className="overflow-x-auto">
+                <table className="w-full border border-gray-300 text-sm min-w-[900px]">
+                  <thead className="bg-gray-100">
+                    <tr>
+                      <th className="border px-2 py-1">Fecha</th>
+                      <th className="border px-2 py-1">Producto</th>
+                      <th className="border px-2 py-1">Color</th>
+                      <th className="border px-2 py-1">LF</th>
+                      <th className="border px-2 py-1">PT</th>
+                      <th className="border px-2 py-1">LP</th>
+                      <th className="border px-2 py-1">Pedido</th>
+                      <th className="border px-2 py-1">Cliente</th>
+                      <th className="border px-2 py-1">Defecto</th>
+                      <th className="border px-2 py-1">Descripción</th>
+                      <th className="border px-2 py-1">Acciones</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody>
+                    {salasReports.map((r) => (
+                      <tr key={r.id}>
+                        <td className="border px-2 py-1">{r.fecha}</td>
+                        <td className="border px-2 py-1">{r.producto}</td>
+                        <td className="border px-2 py-1">{r.color}</td>
+                        <td className="border px-2 py-1">{r.lf}</td>
+                        <td className="border px-2 py-1">{r.pt}</td>
+                        <td className="border px-2 py-1">{r.lp}</td>
+                        <td className="border px-2 py-1">{r.pedido}</td>
+                        <td className="border px-2 py-1">{r.cliente}</td>
+                        <td className="border px-2 py-1">{r.defecto}</td>
+                        <td className="border px-2 py-1">{r.descripcion}</td>
+                        <td className="border px-2 py-1 text-center">
+                          <Button size="sm" onClick={() => obtenerFotos(r.id)}>
+                            Ver Fotos
+                          </Button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             )}
           </CardContent>
         </Card>
 
-        {/* Modal fotos */}
         <Dialog open={modalOpen} onOpenChange={setModalOpen}>
           <DialogContent className="max-w-4xl">
             <DialogHeader>
