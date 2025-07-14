@@ -1,19 +1,48 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { ArrowLeft, Download, Filter, Loader2 } from "lucide-react"
+import {
+  ArrowLeft,
+  Download,
+  Filter,
+  Loader2,
+  X,
+} from "lucide-react"
 import Link from "next/link"
 import Image from "next/image"
-import { Bar, BarChart, ResponsiveContainer, XAxis, YAxis, CartesianGrid, Tooltip, PieChart, Pie, Cell } from "recharts"
+import {
+  Bar,
+  BarChart,
+  ResponsiveContainer,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  PieChart,
+  Pie,
+  Cell,
+} from "recharts"
 import * as XLSX from "xlsx"
 import { getDefectReports, type DefectReport } from "@/lib/database"
 import { useToast } from "@/hooks/use-toast"
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { createClient } from "@supabase/supabase-js"
 
 const COLORS = ["#0088FE", "#00C49F", "#FFBB28", "#FF8042", "#8884D8", "#82CA9D"]
+
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+)
 
 export default function DashboardPage() {
   const [reports, setReports] = useState<DefectReport[]>([])
@@ -23,6 +52,10 @@ export default function DashboardPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [isFiltering, setIsFiltering] = useState(false)
   const { toast } = useToast()
+
+  // Estado para modal fotos
+  const [modalOpen, setModalOpen] = useState(false)
+  const [fotoSeleccionada, setFotoSeleccionada] = useState<string[]>([])
 
   useEffect(() => {
     loadReports()
@@ -80,7 +113,7 @@ export default function DashboardPage() {
       acc[report.area] = (acc[report.area] || 0) + 1
       return acc
     },
-    {} as Record<string, number>,
+    {} as Record<string, number>
   )
 
   const areaChartData = Object.entries(areaStats).map(([area, count]) => ({
@@ -95,7 +128,7 @@ export default function DashboardPage() {
       acc[report.defecto] = (acc[report.defecto] || 0) + 1
       return acc
     },
-    {} as Record<string, number>,
+    {} as Record<string, number>
   )
 
   const topDefects = Object.entries(defectStats)
@@ -139,6 +172,33 @@ export default function DashboardPage() {
     XLSX.writeFile(wb, fileName)
   }
 
+  // Obtener fotos para modal al hacer clic en "Ver Fotos"
+  async function obtenerFotos(reportId: string) {
+    const { data, error } = await supabase
+      .from("defect_report_photos")
+      .select("foto_url")
+      .eq("report_id", reportId)
+
+    if (error) {
+      toast({
+        title: "Error",
+        description: "No se pudieron cargar las fotos",
+        variant: "destructive",
+      })
+      return
+    }
+
+    if (data && data.length > 0) {
+      setFotoSeleccionada(data.map((d) => d.foto_url))
+      setModalOpen(true)
+    } else {
+      toast({
+        title: "Sin Fotos",
+        description: "Este reporte no tiene fotos asociadas",
+      })
+    }
+  }
+
   if (isLoading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -157,10 +217,12 @@ export default function DashboardPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center space-x-4">
-            
               <h1 className="text-2xl font-bold text-gray-900">Estadísticas de Defectos</h1>
             </div>
-            <Button onClick={exportToExcel} className="flex items-center space-x-2">
+            <Button
+              onClick={exportToExcel}
+              className="bg-green-600 hover:bg-green-700 flex items-center space-x-2"
+            >
               <Download className="h-4 w-4" />
               <span>Exportar Excel</span>
             </Button>
@@ -182,11 +244,21 @@ export default function DashboardPage() {
             <div className="flex flex-wrap items-end gap-4">
               <div>
                 <Label htmlFor="startDate">Fecha Inicio</Label>
-                <Input id="startDate" type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
+                <Input
+                  id="startDate"
+                  type="date"
+                  value={startDate}
+                  onChange={(e) => setStartDate(e.target.value)}
+                />
               </div>
               <div>
                 <Label htmlFor="endDate">Fecha Fin</Label>
-                <Input id="endDate" type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} />
+                <Input
+                  id="endDate"
+                  type="date"
+                  value={endDate}
+                  onChange={(e) => setEndDate(e.target.value)}
+                />
               </div>
               <Button onClick={handleDateFilter} disabled={isFiltering}>
                 {isFiltering ? (
@@ -222,7 +294,8 @@ export default function DashboardPage() {
             <CardContent>
               <div className="text-2xl font-bold">{areaStats.SILLAS || 0}</div>
               <p className="text-xs text-muted-foreground">
-                {areaStats.SILLAS ? ((areaStats.SILLAS / filteredReports.length) * 100).toFixed(1) : 0}% del total
+                {areaStats.SILLAS ? ((areaStats.SILLAS / filteredReports.length) * 100).toFixed(1) : 0}%
+                del total
               </p>
             </CardContent>
           </Card>
@@ -233,7 +306,8 @@ export default function DashboardPage() {
             <CardContent>
               <div className="text-2xl font-bold">{areaStats.SALAS || 0}</div>
               <p className="text-xs text-muted-foreground">
-                {areaStats.SALAS ? ((areaStats.SALAS / filteredReports.length) * 100).toFixed(1) : 0}% del total
+                {areaStats.SALAS ? ((areaStats.SALAS / filteredReports.length) * 100).toFixed(1) : 0}%
+                del total
               </p>
             </CardContent>
           </Card>
@@ -312,7 +386,7 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
 
-        {/* Tabla de Reportes */}
+        {/* Tabla de Reportes Recientes */}
         <Card className="mt-8">
           <CardHeader>
             <CardTitle>Reportes Recientes</CardTitle>
@@ -328,6 +402,7 @@ export default function DashboardPage() {
                     <th className="text-left p-2">Cliente</th>
                     <th className="text-left p-2">Defecto</th>
                     <th className="text-left p-2">Foto</th>
+                    <th className="text-left p-2">Acciones</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -352,6 +427,15 @@ export default function DashboardPage() {
                           <span className="text-gray-400">Sin foto</span>
                         )}
                       </td>
+                      <td className="p-2">
+                        {report.foto_url ? (
+                          <Button size="sm" onClick={() => obtenerFotos(report.id)}>
+                            Ver Fotos
+                          </Button>
+                        ) : (
+                          <span className="text-gray-400">No hay fotos</span>
+                        )}
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -359,6 +443,42 @@ export default function DashboardPage() {
             </div>
           </CardContent>
         </Card>
+
+        {/* Modal fotos */}
+        <Dialog open={modalOpen} onOpenChange={setModalOpen}>
+          <DialogContent className="max-w-4xl">
+            <DialogHeader>
+              <DialogTitle>Fotos del Reporte</DialogTitle>
+              <button
+                onClick={() => setModalOpen(false)}
+                className="absolute top-3 right-3"
+                aria-label="Cerrar"
+              >
+                <X className="h-6 w-6" />
+              </button>
+            </DialogHeader>
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-4 p-4">
+              {fotoSeleccionada.length === 0 && <p>No hay fotos para mostrar.</p>}
+              {fotoSeleccionada.map((url, idx) => (
+                <a
+                  key={idx}
+                  href={url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="block rounded overflow-hidden border hover:shadow-lg transition-shadow"
+                >
+                  <Image
+                    src={url}
+                    alt={`Foto ${idx + 1}`}
+                    width={150}
+                    height={150}
+                    className="object-contain"
+                  />
+                </a>
+              ))}
+            </div>
+          </DialogContent>
+        </Dialog>
       </main>
     </div>
   )
