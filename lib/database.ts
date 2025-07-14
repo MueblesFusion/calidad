@@ -1,5 +1,4 @@
 import { createClient } from "@supabase/supabase-js"
-import { v4 as uuidv4 } from "uuid"
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
@@ -52,28 +51,20 @@ export async function getDefectReports(startDate?: string, endDate?: string) {
 }
 
 export async function uploadDefectPhoto(file: File, reportId: string) {
-  try {
-    const fileExt = file.name.split(".").pop()
-    const uniqueId = uuidv4()
-    const fileName = `${reportId}-${uniqueId}.${fileExt}`
-    const filePath = `defect-photos/${fileName}`
+  const fileExt = file.name.split(".").pop()
+  const fileName = `${reportId}-${Date.now()}.${fileExt}`
+  const filePath = `defect-photos/${fileName}`
 
-    // Subir archivo al storage
-    const { error: uploadError } = await supabase.storage.from("defect-photos").upload(filePath, file)
+  const { error: uploadError } = await supabase.storage.from("defect-photos").upload(filePath, file)
 
-    if (uploadError) {
-      console.error("Error uploading photo:", uploadError)
-      throw uploadError
-    }
-
-    // Obtener URL pública
-    const { data } = supabase.storage.from("defect-photos").getPublicUrl(filePath)
-
-    return data.publicUrl
-  } catch (error) {
-    console.error("Error in uploadDefectPhoto:", error)
-    throw error
+  if (uploadError) {
+    console.error("Error uploading photo:", uploadError)
+    throw uploadError
   }
+
+  const { data } = supabase.storage.from("defect-photos").getPublicUrl(filePath)
+
+  return data.publicUrl
 }
 
 export async function getDefectStats(startDate?: string, endDate?: string) {
