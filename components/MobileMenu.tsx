@@ -1,7 +1,13 @@
 "use client"
 
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
-import { Menu, FilePlus, ClipboardList, AlertTriangle, BarChart3 } from "lucide-react"
+import {
+  Menu,
+  FilePlus,
+  ClipboardList,
+  AlertTriangle,
+  BarChart3
+} from "lucide-react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 
@@ -12,6 +18,7 @@ export default function MobileMenu() {
     { name: "Crear Plan", href: "/plan", Icon: FilePlus },
     { name: "Planes de Trabajo", href: "/planes", Icon: ClipboardList },
     { name: "Registrar Defecto", href: "/", Icon: AlertTriangle },
+    { name: "Lista de Defectos", href: "/reportes", Icon: ClipboardList },
     { name: "Dashboard", href: "/dashboard", Icon: BarChart3 }
   ]
 
