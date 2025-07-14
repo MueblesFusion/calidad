@@ -1,4 +1,7 @@
+// /lib/database.ts
+
 import { createClient } from "@supabase/supabase-js"
+import { v4 as uuidv4 } from "uuid"
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
@@ -52,7 +55,8 @@ export async function getDefectReports(startDate?: string, endDate?: string) {
 
 export async function uploadDefectPhoto(file: File, reportId: string) {
   const fileExt = file.name.split(".").pop()
-  const fileName = `${reportId}-${Date.now()}.${fileExt}`
+  const uniqueId = uuidv4()
+  const fileName = `${reportId}-${uniqueId}.${fileExt}`
   const filePath = `defect-photos/${fileName}`
 
   const { error: uploadError } = await supabase.storage.from("defect-photos").upload(filePath, file)
