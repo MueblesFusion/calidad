@@ -5,9 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { ArrowLeft, Download, Filter, Loader2 } from "lucide-react"
-import Link from "next/link"
-import Image from "next/image"
+import { Download, Filter, Loader2 } from "lucide-react"
 import { Bar, BarChart, ResponsiveContainer, XAxis, YAxis, CartesianGrid, Tooltip, PieChart, Pie, Cell } from "recharts"
 import * as XLSX from "xlsx"
 import { getDefectReports, type DefectReport } from "@/lib/database"
@@ -74,46 +72,6 @@ export default function DashboardPage() {
     setFilteredReports(reports)
   }
 
-  // Estadísticas por área
-  const areaStats = filteredReports.reduce(
-    (acc, report) => {
-      acc[report.area] = (acc[report.area] || 0) + 1
-      return acc
-    },
-    {} as Record<string, number>,
-  )
-
-  const areaChartData = Object.entries(areaStats).map(([area, count]) => ({
-    area,
-    count,
-    percentage: ((count / filteredReports.length) * 100).toFixed(1),
-  }))
-
-  // Estadísticas por defecto
-  const defectStats = filteredReports.reduce(
-    (acc, report) => {
-      acc[report.defecto] = (acc[report.defecto] || 0) + 1
-      return acc
-    },
-    {} as Record<string, number>,
-  )
-
-  const topDefects = Object.entries(defectStats)
-    .sort(([, a], [, b]) => b - a)
-    .slice(0, 10)
-    .map(([defecto, count]) => ({
-      defecto: defecto.length > 20 ? defecto.substring(0, 20) + "..." : defecto,
-      count,
-      percentage: ((count / filteredReports.length) * 100).toFixed(1),
-    }))
-
-  // Datos para gráfico de pie
-  const pieData = areaChartData.map((item, index) => ({
-    name: item.area,
-    value: item.count,
-    color: COLORS[index % COLORS.length],
-  }))
-
   const exportToExcel = () => {
     const dataToExport = filteredReports.map((report) => ({
       Fecha: report.fecha,
@@ -139,6 +97,37 @@ export default function DashboardPage() {
     XLSX.writeFile(wb, fileName)
   }
 
+  const areaStats = filteredReports.reduce((acc, report) => {
+    acc[report.area] = (acc[report.area] || 0) + 1
+    return acc
+  }, {} as Record<string, number>)
+
+  const areaChartData = Object.entries(areaStats).map(([area, count]) => ({
+    area,
+    count,
+    percentage: ((count / filteredReports.length) * 100).toFixed(1),
+  }))
+
+  const defectStats = filteredReports.reduce((acc, report) => {
+    acc[report.defecto] = (acc[report.defecto] || 0) + 1
+    return acc
+  }, {} as Record<string, number>)
+
+  const topDefects = Object.entries(defectStats)
+    .sort(([, a], [, b]) => b - a)
+    .slice(0, 10)
+    .map(([defecto, count]) => ({
+      defecto: defecto.length > 20 ? defecto.substring(0, 20) + "..." : defecto,
+      count,
+      percentage: ((count / filteredReports.length) * 100).toFixed(1),
+    }))
+
+  const pieData = areaChartData.map((item, index) => ({
+    name: item.area,
+    value: item.count,
+    color: COLORS[index % COLORS.length],
+  }))
+
   if (isLoading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -152,29 +141,12 @@ export default function DashboardPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <header className="bg-white shadow-sm border-b">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            <div className="flex items-center space-x-4">
-              <h1 className="text-2xl font-bold text-gray-900">Estadísticas de Defectos</h1>
-            </div>
-            <Button onClick={exportToExcel} className="bg-green-600 hover:bg-green-700 flex items-center space-x-2">
-              <Download className="h-4 w-4" />
-              <span>Exportar Excel</span>
-            </Button>
-          </div>
-        </div>
-      </header>
-
-      {/* Main Content */}
       <main className="max-w-7xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
         {/* Filtros */}
         <Card className="mb-8">
           <CardHeader>
             <CardTitle className="flex items-center space-x-2">
               <Filter className="h-5 w-5" />
-                   <h1 className="text-2xl font-bold text-gray-900">Estadísticas de Defectos</h1>
               <span>Filtros de Fecha</span>
             </CardTitle>
           </CardHeader>
@@ -201,6 +173,15 @@ export default function DashboardPage() {
               <Button variant="outline" onClick={clearFilter}>
                 Limpiar
               </Button>
+              <div className="ml-auto">
+                <Button
+                  onClick={exportToExcel}
+                  className="bg-green-600 hover:bg-green-700 flex items-center space-x-2"
+                >
+                  <Download className="h-4 w-4" />
+                  <span>Exportar Excel</span>
+                </Button>
+              </div>
             </div>
           </CardContent>
         </Card>
@@ -241,7 +222,6 @@ export default function DashboardPage() {
 
         {/* Gráficos */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
-          {/* Gráfico de Barras por Área */}
           <Card>
             <CardHeader>
               <CardTitle>Defectos por Área</CardTitle>
@@ -261,8 +241,6 @@ export default function DashboardPage() {
               </ResponsiveContainer>
             </CardContent>
           </Card>
-
-          {/* Gráfico de Pie */}
           <Card>
             <CardHeader>
               <CardTitle>Distribución por Área</CardTitle>
