@@ -174,6 +174,7 @@ export default function DashboardPage() {
           <CardHeader>
             <CardTitle className="flex items-center space-x-2">
               <Filter className="h-5 w-5" />
+                   <h1 className="text-2xl font-bold text-gray-900">Estadísticas de Defectos</h1>
               <span>Filtros de Fecha</span>
             </CardTitle>
           </CardHeader>
