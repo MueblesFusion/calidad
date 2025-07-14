@@ -1,5 +1,6 @@
 "use client"
 
+import { useState } from "react"
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
 import {
   Menu,
@@ -14,6 +15,7 @@ import { usePathname } from "next/navigation"
 
 export default function MobileMenu() {
   const pathname = usePathname()
+  const [open, setOpen] = useState(false)
 
   const links = [
     { name: "Crear Plan", href: "/plan", Icon: FilePlus },
@@ -24,7 +26,7 @@ export default function MobileMenu() {
   ]
 
   return (
-    <Sheet>
+    <Sheet open={open} onOpenChange={setOpen}>
       <SheetTrigger asChild>
         <button className="lg:hidden px-2 py-2">
           <Menu className="h-6 w-6" />
@@ -39,6 +41,7 @@ export default function MobileMenu() {
             <Link
               key={href}
               href={href}
+              onClick={() => setOpen(false)} // 👈 Cierra el menú al hacer clic
               className={`flex items-center px-3 py-2 rounded hover:bg-muted ${
                 pathname === href ? "bg-muted font-semibold" : ""
               }`}
