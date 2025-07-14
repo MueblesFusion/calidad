@@ -5,14 +5,13 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { ArrowLeft, Download, Filter, Loader2, X } from "lucide-react"
+import { ArrowLeft, Download, Filter, Loader2 } from "lucide-react"
 import Link from "next/link"
 import Image from "next/image"
 import { Bar, BarChart, ResponsiveContainer, XAxis, YAxis, CartesianGrid, Tooltip, PieChart, Pie, Cell } from "recharts"
 import * as XLSX from "xlsx"
 import { getDefectReports, type DefectReport } from "@/lib/database"
 import { useToast } from "@/hooks/use-toast"
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 
 const COLORS = ["#0088FE", "#00C49F", "#FFBB28", "#FF8042", "#8884D8", "#82CA9D"]
 
@@ -23,9 +22,6 @@ export default function DashboardPage() {
   const [endDate, setEndDate] = useState("")
   const [isLoading, setIsLoading] = useState(true)
   const [isFiltering, setIsFiltering] = useState(false)
-  const [modalOpen, setModalOpen] = useState(false)
-  const [fotoSeleccionada, setFotoSeleccionada] = useState<string[]>([])
-
   const { toast } = useToast()
 
   useEffect(() => {
@@ -141,30 +137,6 @@ export default function DashboardPage() {
 
     const fileName = `reporte_defectos_${startDate || "todos"}_${endDate || "todos"}.xlsx`
     XLSX.writeFile(wb, fileName)
-  }
-
-  async function obtenerFotos(reportId: string) {
-    try {
-      // Llamada a backend o supabase para obtener fotos relacionadas
-      const res = await fetch(`/api/get-photos?reportId=${reportId}`)
-      if (!res.ok) throw new Error("Error al obtener fotos")
-      const data = await res.json()
-      if (!data || data.length === 0) {
-        toast({
-          title: "Sin Fotos",
-          description: "Este reporte no tiene fotos asociadas",
-        })
-        return
-      }
-      setFotoSeleccionada(data)
-      setModalOpen(true)
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "No se pudieron cargar las fotos",
-        variant: "destructive",
-      })
-    }
   }
 
   if (isLoading) {
@@ -338,96 +310,6 @@ export default function DashboardPage() {
             </ResponsiveContainer>
           </CardContent>
         </Card>
-
-        {/* Tabla de Reportes */}
-        <Card className="mt-8">
-          <CardHeader>
-            <CardTitle>Reportes Recientes</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b">
-                    <th className="text-left p-2">Fecha</th>
-                    <th className="text-left p-2">Área</th>
-                    <th className="text-left p-2">Producto</th>
-                    <th className="text-left p-2">Cliente</th>
-                    <th className="text-left p-2">Defecto</th>
-                    <th className="text-left p-2">Foto</th>
-                    <th className="text-left p-2">Acciones</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredReports.slice(0, 10).map((report) => (
-                    <tr key={report.id} className="border-b hover:bg-gray-50">
-                      <td className="p-2">{report.fecha}</td>
-                      <td className="p-2">{report.area}</td>
-                      <td className="p-2">{report.producto}</td>
-                      <td className="p-2">{report.cliente}</td>
-                      <td className="p-2">{report.defecto}</td>
-                      <td className="p-2">
-                        {report.foto_url ? (
-                          <a
-                            href={report.foto_url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-blue-600 hover:text-blue-800 underline"
-                          >
-                            Ver foto
-                          </a>
-                        ) : (
-                          <span className="text-gray-400">Sin foto</span>
-                        )}
-                      </td>
-                      <td className="p-2">
-                        <Button size="sm" onClick={() => obtenerFotos(report.id)}>
-                          Ver Fotos
-                        </Button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Modal fotos */}
-        <Dialog open={modalOpen} onOpenChange={setModalOpen}>
-          <DialogContent className="max-w-4xl">
-            <DialogHeader>
-              <DialogTitle>Fotos del Reporte</DialogTitle>
-              <button
-                onClick={() => setModalOpen(false)}
-                className="absolute top-3 right-3"
-                aria-label="Cerrar"
-              >
-                <X className="h-6 w-6" />
-              </button>
-            </DialogHeader>
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-4 p-4 max-h-[70vh] overflow-y-auto">
-              {fotoSeleccionada.length === 0 && <p>No hay fotos para mostrar.</p>}
-              {fotoSeleccionada.map((url, idx) => (
-                <a
-                  key={idx}
-                  href={url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="block rounded border overflow-hidden"
-                >
-                  <Image
-                    src={url}
-                    alt={`Foto ${idx + 1}`}
-                    width={200}
-                    height={200}
-                    className="object-contain"
-                  />
-                </a>
-              ))}
-            </div>
-          </DialogContent>
-        </Dialog>
       </main>
     </div>
   )
