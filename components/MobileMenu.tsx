@@ -6,7 +6,8 @@ import {
   FilePlus,
   ClipboardList,
   AlertTriangle,
-  BarChart3
+  BarChart3,
+  ListChecks
 } from "lucide-react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
@@ -18,7 +19,7 @@ export default function MobileMenu() {
     { name: "Crear Plan", href: "/plan", Icon: FilePlus },
     { name: "Planes de Trabajo", href: "/planes", Icon: ClipboardList },
     { name: "Registrar Defecto", href: "/", Icon: AlertTriangle },
-    { name: "Lista de Defectos", href: "/reportes", Icon: ClipboardList },
+    { name: "Lista de Defectos", href: "/reportes", Icon: ListChecks },
     { name: "Dashboard", href: "/dashboard", Icon: BarChart3 }
   ]
 
