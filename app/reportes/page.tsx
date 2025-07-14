@@ -328,18 +328,24 @@ export default function ReportesPage() {
                 <X className="h-6 w-6" />
               </button>
             </DialogHeader>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4">
+            <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-3 p-4">
               {fotoSeleccionada.length === 0 && <p>No hay fotos para mostrar.</p>}
               {fotoSeleccionada.map((url, idx) => (
-                <div key={idx} className="rounded overflow-hidden border">
+                <button
+                  key={idx}
+                  onClick={() => window.open(url, "_blank")}
+                  className="rounded overflow-hidden border p-1 hover:shadow-lg transition-shadow"
+                  aria-label={`Abrir foto ${idx + 1} en nueva pestaña`}
+                >
                   <Image
                     src={url}
                     alt={`Foto ${idx + 1}`}
-                    width={400}
-                    height={400}
-                    className="object-contain"
+                    width={120}
+                    height={120}
+                    className="object-cover"
+                    style={{ borderRadius: 6 }}
                   />
-                </div>
+                </button>
               ))}
             </div>
           </DialogContent>
