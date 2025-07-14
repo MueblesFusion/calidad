@@ -9,14 +9,12 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
 import { useToast } from "@/hooks/use-toast"
-import { Upload, BarChart3, Loader2 } from "lucide-react"
-import Link from "next/link"
-import Image from "next/image"
+import { Upload, Loader2 } from "lucide-react"
 import { createDefectReport, uploadDefectPhoto } from "@/lib/database"
 import { createClient } from "@supabase/supabase-js"
 
-const supabaseUrl = "https://your-supabase-url.supabase.co"
-const supabaseKey = "your-supabase-key"
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://your-supabase-url.supabase.co"
+const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "your-supabase-key"
 const supabase = createClient(supabaseUrl, supabaseKey)
 
 const defectosSillas = [
@@ -83,6 +81,7 @@ export default function HomePage() {
     defecto: "",
     descripcion: "",
   })
+
   const [fotos, setFotos] = useState<File[]>([])
   const [isSubmitting, setIsSubmitting] = useState(false)
   const { toast } = useToast()
@@ -91,9 +90,10 @@ export default function HomePage() {
     setFormData((prev) => ({ ...prev, [field]: value }))
   }
 
+  // Agregar múltiples archivos al arreglo fotos
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      setFoto(e.target.files[0])
+    if (e.target.files) {
+      setFotos((prev) => [...prev, ...Array.from(e.target.files)])
     }
   }
 
@@ -108,10 +108,11 @@ export default function HomePage() {
           description: "Por favor completa los campos obligatorios",
           variant: "destructive",
         })
+        setIsSubmitting(false)
         return
       }
 
-      // Crear el reporte en la base de datos
+      // Crear reporte
       const reportData = {
         fecha: new Date().toISOString().split("T")[0],
         ...formData,
@@ -119,19 +120,20 @@ export default function HomePage() {
 
       const newReport = await createDefectReport(reportData)
 
-      // Subir foto si existe
-      let fotoUrl = ""
-      if (foto && newReport.id) {
-        fotoUrl = await uploadDefectPhoto(foto, newReport.id)
+      // Subir todas las fotos si hay y guardar en tabla relacionada
+      if (newReport.id && fotos.length > 0) {
+        const uploadPromises = fotos.map((file) => uploadDefectPhoto(file, newReport.id!))
+        const fotoUrls = await Promise.all(uploadPromises)
 
-        // Actualizar el reporte con la URL de la foto
-        const { error: updateError } = await supabase
-          .from("defect_reports")
-          .update({ foto_url: fotoUrl })
-          .eq("id", newReport.id)
-
-        if (updateError) {
-          console.error("Error updating photo URL:", updateError)
+        // Insertar URLs en tabla defect_report_photos
+        for (const url of fotoUrls) {
+          const { error } = await supabase.from("defect_report_photos").insert({
+            report_id: newReport.id,
+            foto_url: url,
+          })
+          if (error) {
+            console.error("Error inserting photo record:", error)
+          }
         }
       }
 
@@ -140,7 +142,7 @@ export default function HomePage() {
         description: "Reporte de defecto registrado correctamente",
       })
 
-      // Limpiar formulario
+      // Limpiar
       setFormData({
         area: "",
         producto: "",
@@ -155,7 +157,6 @@ export default function HomePage() {
       })
       setFotos([])
 
-      // Reset file input
       const fileInput = document.getElementById("foto") as HTMLInputElement
       if (fileInput) {
         fileInput.value = ""
@@ -176,9 +177,6 @@ export default function HomePage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-     
-
-      {/* Main Content */}
       <main className="max-w-4xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
         <Card>
           <CardHeader>
@@ -299,27 +297,35 @@ export default function HomePage() {
                 />
               </div>
 
-              {/* Carga de Foto */}
+              {/* Carga de Fotos (múltiples) */}
               <div>
-                <Label htmlFor="foto">Foto del Defecto</Label>
+                <Label htmlFor="foto">Fotos del Defecto</Label>
                 <div className="mt-2">
                   <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-gray-300 border-dashed rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100">
                     <div className="flex flex-col items-center justify-center pt-5 pb-6">
                       <Upload className="w-8 h-8 mb-4 text-gray-500" />
                       <p className="mb-2 text-sm text-gray-500">
-                        <span className="font-semibold">Click para subir</span> o arrastra la imagen
+                        <span className="font-semibold">Click para subir</span> o arrastra las imágenes
                       </p>
-                      <p className="text-xs text-gray-500">PNG, JPG o JPEG</p>
+                      <p className="text-xs text-gray-500">PNG, JPG o JPEG (múltiples)</p>
                     </div>
-                    <input id="foto" type="file" className="hidden" accept="image/*" multiple onChange={handleFileChange} />
+                    <input
+                      id="foto"
+                      type="file"
+                      className="hidden"
+                      accept="image/*"
+                      multiple
+                      onChange={handleFileChange}
+                    />
                   </label>
+
                   {fotos.length > 0 && (
-  <ul className="mt-2 text-sm text-gray-600 list-disc pl-4">
-    {fotos.map((foto, index) => (
-      <li key={index}>{foto.name}</li>
-    ))}
-  </ul>
-)}
+                    <ul className="mt-2 text-sm text-gray-600 list-disc pl-4">
+                      {fotos.map((foto, index) => (
+                        <li key={index}>{foto.name}</li>
+                      ))}
+                    </ul>
+                  )}
                 </div>
               </div>
 
