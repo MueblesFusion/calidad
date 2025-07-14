@@ -2,7 +2,13 @@
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { FilePlus, ClipboardList, AlertTriangle, BarChart3 } from "lucide-react"
+import {
+  FilePlus,
+  ClipboardList,
+  AlertTriangle,
+  BarChart3,
+  ListChecks
+} from "lucide-react"
 
 export default function Sidebar() {
   const pathname = usePathname()
@@ -11,7 +17,7 @@ export default function Sidebar() {
     { name: "Crear Plan", href: "/plan", Icon: FilePlus },
     { name: "Planes de Trabajo", href: "/planes", Icon: ClipboardList },
     { name: "Registrar Defecto", href: "/", Icon: AlertTriangle },
-    { name: "Lista de Defectos", href: "/reportes", Icon: ListChecks }, // Nuevo menú en esta posición
+    { name: "Lista de Defectos", href: "/reportes", Icon: ListChecks }, // ← Nuevo ícono
     { name: "Dashboard", href: "/dashboard", Icon: BarChart3 }
   ]
 
