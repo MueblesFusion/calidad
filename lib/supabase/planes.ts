@@ -12,3 +12,13 @@ export async function getAllPlanes() {
 
   return data
 }
+
+export async function crearPlan(plan: any) {
+  const { data, error } = await supabase
+    .from("planes_trabajo")
+    .insert([plan])
+    .select()
+
+  if (error) throw error
+  return data?.[0]
+}
