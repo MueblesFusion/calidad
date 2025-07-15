@@ -1,6 +1,3 @@
-// /lib/database.ts
-
-
 import { createClient } from "@supabase/supabase-js"
 import { v4 as uuidv4 } from "uuid"
 
@@ -23,11 +20,18 @@ export type DefectReport = {
   cliente: string
   defecto: string
   descripcion: string
+  cantidad: number // <-- agregado
   foto_url?: string
 }
 
 export async function createDefectReport(report: Omit<DefectReport, "id" | "created_at">) {
-  const { data, error } = await supabase.from("defect_reports").insert([report]).select().single()
+  // Aseguramos que cantidad sea número
+  const reportToInsert = {
+    ...report,
+    cantidad: Number(report.cantidad),
+  }
+
+  const { data, error } = await supabase.from("defect_reports").insert([reportToInsert]).select().single()
 
   if (error) {
     console.error("Error creating defect report:", error)
