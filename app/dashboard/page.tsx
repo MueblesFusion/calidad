@@ -99,13 +99,17 @@ export default function DashboardPage() {
     return acc
   }, {} as Record<string, number>)
 
+  // Total real de defectos (sumamos la cantidad total de defectos en todos los reportes)
+  const totalDefectos = Object.values(defectStats).reduce((a, b) => a + b, 0)
+
+  // Ajustar topDefects para que el porcentaje sea respecto al total de defectos individuales
   const topDefects = Object.entries(defectStats)
     .sort(([, a], [, b]) => b - a)
     .slice(0, 10)
     .map(([defecto, count]) => ({
       defecto: defecto.length > 20 ? defecto.substring(0, 20) + "..." : defecto,
       count,
-      percentage: ((count / filteredReports.length) * 100).toFixed(1),
+      percentage: ((count / totalDefectos) * 100).toFixed(1),
     }))
 
   // Datos para gráfico de pie
@@ -212,7 +216,7 @@ export default function DashboardPage() {
               <CardTitle className="text-sm font-medium">Total Defectos</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{filteredReports.length}</div>
+              <div className="text-2xl font-bold">{totalDefectos}</div>
             </CardContent>
           </Card>
           <Card>
