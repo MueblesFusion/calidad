@@ -74,35 +74,36 @@ export default function DashboardPage() {
     setFilteredReports(reports)
   }
 
-  // Estadísticas por área
-  const areaStats = filteredReports.reduce(
-    (acc, report) => {
-      acc[report.area] = (acc[report.area] || 0) + 1
-      return acc
-    },
-    {} as Record<string, number>,
-  )
+  // Total de defectos individuales (para estadísticas)
+  const totalDefectos = filteredReports.reduce((sum, report) => {
+    if (!report.defecto) return sum
+    const defectos = report.defecto.split(",").map((d) => d.trim()).filter(Boolean)
+    return sum + defectos.length
+  }, 0)
+
+  // Estadísticas por área (cuenta defectos, no reportes)
+  const areaStats = filteredReports.reduce((acc, report) => {
+    if (!report.defecto) return acc
+    const defectos = report.defecto.split(",").map((d) => d.trim()).filter(Boolean)
+    acc[report.area] = (acc[report.area] || 0) + defectos.length
+    return acc
+  }, {} as Record<string, number>)
 
   const areaChartData = Object.entries(areaStats).map(([area, count]) => ({
     area,
     count,
-    percentage: ((count / filteredReports.length) * 100).toFixed(1),
+    percentage: ((count / totalDefectos) * 100).toFixed(1),
   }))
 
-  // Estadísticas por defecto (procesando defectos múltiples separados por coma)
+  // Estadísticas por defecto individual
   const defectStats = filteredReports.reduce((acc, report) => {
-    if (!report.defecto) return acc
-    const defectos = report.defecto.split(",").map((d) => d.trim()).filter(Boolean)
-    for (const d of defectos) {
-      acc[d] = (acc[d] || 0) + 1
+    const defectos = report.defecto?.split(",").map((d) => d.trim()).filter(Boolean) || []
+    for (const defecto of defectos) {
+      acc[defecto] = (acc[defecto] || 0) + 1
     }
     return acc
   }, {} as Record<string, number>)
 
-  // Total real de defectos (sumamos la cantidad total de defectos en todos los reportes)
-  const totalDefectos = Object.values(defectStats).reduce((a, b) => a + b, 0)
-
-  // Ajustar topDefects para que el porcentaje sea respecto al total de defectos individuales
   const topDefects = Object.entries(defectStats)
     .sort(([, a], [, b]) => b - a)
     .slice(0, 10)
@@ -112,7 +113,6 @@ export default function DashboardPage() {
       percentage: ((count / totalDefectos) * 100).toFixed(1),
     }))
 
-  // Datos para gráfico de pie
   const pieData = areaChartData.map((item, index) => ({
     name: item.area,
     value: item.count,
@@ -157,7 +157,6 @@ export default function DashboardPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Header */}
       <header className="bg-white shadow-sm border-b">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
@@ -172,7 +171,6 @@ export default function DashboardPage() {
         </div>
       </header>
 
-      {/* Main Content */}
       <main className="max-w-7xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
         {/* Filtros */}
         <Card className="mb-8">
@@ -226,7 +224,7 @@ export default function DashboardPage() {
             <CardContent>
               <div className="text-2xl font-bold">{areaStats.SILLAS || 0}</div>
               <p className="text-xs text-muted-foreground">
-                {areaStats.SILLAS ? ((areaStats.SILLAS / filteredReports.length) * 100).toFixed(1) : 0}% del total
+                {areaStats.SILLAS ? ((areaStats.SILLAS / totalDefectos) * 100).toFixed(1) : 0}% del total
               </p>
             </CardContent>
           </Card>
@@ -237,7 +235,7 @@ export default function DashboardPage() {
             <CardContent>
               <div className="text-2xl font-bold">{areaStats.SALAS || 0}</div>
               <p className="text-xs text-muted-foreground">
-                {areaStats.SALAS ? ((areaStats.SALAS / filteredReports.length) * 100).toFixed(1) : 0}% del total
+                {areaStats.SALAS ? ((areaStats.SALAS / totalDefectos) * 100).toFixed(1) : 0}% del total
               </p>
             </CardContent>
           </Card>
@@ -245,7 +243,6 @@ export default function DashboardPage() {
 
         {/* Gráficos */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
-          {/* Gráfico de Barras por Área */}
           <Card>
             <CardHeader>
               <CardTitle>Defectos por Área</CardTitle>
@@ -256,17 +253,13 @@ export default function DashboardPage() {
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis dataKey="area" />
                   <YAxis />
-                  <Tooltip
-                    formatter={(value, name) => [value, "Cantidad"]}
-                    labelFormatter={(label) => `Área: ${label}`}
-                  />
+                  <Tooltip formatter={(value) => [value, "Cantidad"]} labelFormatter={(label) => `Área: ${label}`} />
                   <Bar dataKey="count" fill="#8884d8" />
                 </BarChart>
               </ResponsiveContainer>
             </CardContent>
           </Card>
 
-          {/* Gráfico de Pie */}
           <Card>
             <CardHeader>
               <CardTitle>Distribución por Área</CardTitle>
@@ -285,7 +278,7 @@ export default function DashboardPage() {
                     dataKey="value"
                   >
                     {pieData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                      <Cell key={`cell-${index}`} fill={entry.color} />
                     ))}
                   </Pie>
                   <Tooltip />
@@ -306,10 +299,7 @@ export default function DashboardPage() {
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis type="number" />
                 <YAxis dataKey="defecto" type="category" width={150} />
-                <Tooltip
-                  formatter={(value, name) => [value, "Cantidad"]}
-                  labelFormatter={(label) => `Defecto: ${label}`}
-                />
+                <Tooltip formatter={(value) => [value, "Cantidad"]} labelFormatter={(label) => `Defecto: ${label}`} />
                 <Bar dataKey="count" fill="#82ca9d" />
               </BarChart>
             </ResponsiveContainer>
