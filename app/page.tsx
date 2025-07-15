@@ -85,9 +85,6 @@ export default function HomePage() {
   // Nuevo estado para defectos múltiples seleccionados
   const [defectosSeleccionados, setDefectosSeleccionados] = useState<string[]>([])
 
-  // Estado para mostrar mensaje temporal de éxito
-  const [successMessage, setSuccessMessage] = useState("")
-
   const [fotos, setFotos] = useState<File[]>([])
   const [isSubmitting, setIsSubmitting] = useState(false)
   const { toast } = useToast()
@@ -106,6 +103,7 @@ export default function HomePage() {
   // Limpiar selección de defectos cuando cambia el área
   useEffect(() => {
     setDefectosSeleccionados([])
+    setFormData((prev) => ({ ...prev, defecto: "" })) // Limpiar defecto manual también
   }, [formData.area])
 
   // Agregar múltiples archivos al arreglo fotos
@@ -130,11 +128,20 @@ export default function HomePage() {
         return
       }
 
+      // Armar lista de defectos para enviar
+      let defectosFinales = [...defectosSeleccionados]
+
+      // Si 'OTRO' está seleccionado y hay texto manual, reemplazar 'OTRO' por el texto
+      if (defectosSeleccionados.includes("OTRO") && formData.defecto.trim() !== "") {
+        defectosFinales = defectosFinales.filter((d) => d !== "OTRO")
+        defectosFinales.push(formData.defecto.trim())
+      }
+
       // Armar objeto reportData con defectos concatenados en un string separado por comas
       const reportData = {
         fecha: new Date().toISOString().split("T")[0],
         ...formData,
-        defecto: defectosSeleccionados.join(", "),
+        defecto: defectosFinales.join(", "),
       }
 
       const newReport = await createDefectReport(reportData)
@@ -160,12 +167,6 @@ export default function HomePage() {
         title: "Éxito",
         description: "Reporte de defecto registrado correctamente",
       })
-
-      // Mostrar mensaje temporal
-      setSuccessMessage("Registrado con éxito")
-      setTimeout(() => {
-        setSuccessMessage("")
-      }, 4000) // desaparece después de 4 segundos
 
       // Limpiar formulario y fotos
       setFormData({
@@ -209,13 +210,6 @@ export default function HomePage() {
             <CardTitle className="text-xl font-semibold">Registro de Defectos</CardTitle>
           </CardHeader>
           <CardContent>
-            {/* Mensaje temporal de éxito */}
-            {successMessage && (
-              <div className="mb-4 p-3 text-green-800 bg-green-100 rounded border border-green-300">
-                {successMessage}
-              </div>
-            )}
-
             <form onSubmit={handleSubmit} className="space-y-6">
               {/* Área */}
               <div>
@@ -316,6 +310,20 @@ export default function HomePage() {
                       </label>
                     ))}
                   </div>
+
+                  {/* Mostrar campo para defecto manual solo si 'OTRO' está seleccionado */}
+                  {defectosSeleccionados.includes("OTRO") && (
+                    <div className="mt-4">
+                      <Label htmlFor="defectoManual">Escribe el defecto manualmente *</Label>
+                      <Input
+                        id="defectoManual"
+                        value={formData.defecto}
+                        onChange={(e) => handleInputChange("defecto", e.target.value)}
+                        placeholder="Describe el defecto"
+                        required={defectosSeleccionados.includes("OTRO")}
+                      />
+                    </div>
+                  )}
                 </div>
               )}
 
