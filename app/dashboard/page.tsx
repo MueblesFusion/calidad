@@ -113,7 +113,6 @@ export default function DashboardPage() {
     color: COLORS[index % COLORS.length],
   }))
 
-  // Nuevo: defectos por tipo por área
   const defectosPorArea = filteredReports.reduce((acc, report) => {
     const defectos = report.defecto?.split(",").map((d) => d.trim()).filter(Boolean) || []
     for (const defecto of defectos) {
@@ -180,7 +179,6 @@ export default function DashboardPage() {
       </header>
 
       <main className="max-w-7xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
-        {/* Filtros */}
         <Card className="mb-8">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -209,10 +207,11 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
 
-        {/* Totales */}
+        {/* Tarjetas de Totales */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
           {["Total Defectos", "Defectos Sillas", "Defectos Salas"].map((title, i) => {
-            const value = i === 0 ? totalDefectos : areaStats[title.split(" ")[1]] || 0
+            const key = i === 1 ? "SILLAS" : i === 2 ? "SALAS" : ""
+            const value = i === 0 ? totalDefectos : areaStats[key] || 0
             return (
               <Card key={title}>
                 <CardHeader className="pb-2">
@@ -231,7 +230,7 @@ export default function DashboardPage() {
           })}
         </div>
 
-        {/* Gráficos de Área */}
+        {/* Gráficos por Área */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
           <Card>
             <CardHeader>
@@ -277,7 +276,7 @@ export default function DashboardPage() {
           </Card>
         </div>
 
-        {/* Gráficos por Tipo de Defecto por Área */}
+        {/* Gráficos por tipo de defecto por área */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
           <Card>
             <CardHeader>
