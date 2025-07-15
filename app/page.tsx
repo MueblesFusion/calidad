@@ -18,54 +18,18 @@ const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "your-supabase-
 const supabase = createClient(supabaseUrl, supabaseKey)
 
 const defectosSillas = [
-  "GOLPE DES. DE LACA",
-  "GOLPE ANT. DE LACA",
-  "DESPOSTILLADO",
-  "RAYAS DES. DE LACA",
-  "RAYAS ANT. DE LACA",
-  "MARCA PULIDORA",
-  "MARCA CARACOL",
-  "SIN RESANE",
-  "EXCESO DE RESANE",
-  "LACA MANCHA",
-  "LACA CHORREADA",
-  "LACA MARCAS",
-  "LACA GRUMO",
-  "LACA BRISIADO",
-  "GRAPA VISIBLE",
-  "CASCO DESCUADRADO",
-  "CASCO QUEBRADO",
-  "BONFORD ROTO",
-  "COSTURA DESALINEADA",
-  "PESPUNTE FLOJO",
-  "FALLA DE TELA",
-  "DIFERENCIA DE TONO",
-  "MAL TAPIZADO",
-  "TELA SUCIA",
-  "TELA ROTA",
-  "RESPALDO QUEBRADO",
-  "OTRO",
+  "GOLPE DES. DE LACA", "GOLPE ANT. DE LACA", "DESPOSTILLADO", "RAYAS DES. DE LACA", "RAYAS ANT. DE LACA",
+  "MARCA PULIDORA", "MARCA CARACOL", "SIN RESANE", "EXCESO DE RESANE", "LACA MANCHA", "LACA CHORREADA",
+  "LACA MARCAS", "LACA GRUMO", "LACA BRISIADO", "GRAPA VISIBLE", "CASCO DESCUADRADO", "CASCO QUEBRADO",
+  "BONFORD ROTO", "COSTURA DESALINEADA", "PESPUNTE FLOJO", "FALLA DE TELA", "DIFERENCIA DE TONO",
+  "MAL TAPIZADO", "TELA SUCIA", "TELA ROTA", "RESPALDO QUEBRADO", "OTRO"
 ]
 
 const defectosSalas = [
-  "MAL TAPIZADO",
-  "BONFORD ROTO",
-  "GRAPA VISIBLE",
-  "TIRA TACHUELA DESALINEADO",
-  "TIRA TACHUELA SUELTA",
-  "JALONES DESALINEADOS",
-  "JALONES SUELTOS",
-  "COSTURA DESALINEADA",
-  "PESPUNTE FLOJO",
-  "FALLA DE TELA",
-  "DIFERENCIA DE TONO",
-  "CASCO DESCUADRADO",
-  "CASCO QUEBRADO",
-  "PATAS FLOJAS",
-  "TELA SUCIA",
-  "TELA MANCHADA",
-  "TELA ROTA",
-  "OTRO",
+  "MAL TAPIZADO", "BONFORD ROTO", "GRAPA VISIBLE", "TIRA TACHUELA DESALINEADO", "TIRA TACHUELA SUELTA",
+  "JALONES DESALINEADOS", "JALONES SUELTOS", "COSTURA DESALINEADA", "PESPUNTE FLOJO", "FALLA DE TELA",
+  "DIFERENCIA DE TONO", "CASCO DESCUADRADO", "CASCO QUEBRADO", "PATAS FLOJAS", "TELA SUCIA",
+  "TELA MANCHADA", "TELA ROTA", "OTRO"
 ]
 
 export default function HomePage() {
@@ -80,11 +44,10 @@ export default function HomePage() {
     cliente: "",
     defecto: "",
     descripcion: "",
+    cantidad: "", // nuevo campo
   })
 
-  // Nuevo estado para defectos múltiples seleccionados
   const [defectosSeleccionados, setDefectosSeleccionados] = useState<string[]>([])
-
   const [fotos, setFotos] = useState<File[]>([])
   const [isSubmitting, setIsSubmitting] = useState(false)
   const { toast } = useToast()
@@ -93,20 +56,17 @@ export default function HomePage() {
     setFormData((prev) => ({ ...prev, [field]: value }))
   }
 
-  // Maneja toggle checkbox defectos
   const handleToggleDefecto = (defecto: string) => {
     setDefectosSeleccionados((prev) =>
       prev.includes(defecto) ? prev.filter((d) => d !== defecto) : [...prev, defecto]
     )
   }
 
-  // Limpiar selección de defectos cuando cambia el área
   useEffect(() => {
     setDefectosSeleccionados([])
-    setFormData((prev) => ({ ...prev, defecto: "" })) // Limpiar defecto manual también
+    setFormData((prev) => ({ ...prev, defecto: "" }))
   }, [formData.area])
 
-  // Agregar múltiples archivos al arreglo fotos
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
       setFotos((prev) => [...prev, ...Array.from(e.target.files)])
@@ -118,7 +78,12 @@ export default function HomePage() {
     setIsSubmitting(true)
 
     try {
-      if (!formData.area || !formData.producto || defectosSeleccionados.length === 0) {
+      if (
+        !formData.area ||
+        !formData.producto ||
+        defectosSeleccionados.length === 0 ||
+        !formData.cantidad
+      ) {
         toast({
           title: "Error",
           description: "Por favor completa los campos obligatorios",
@@ -128,16 +93,13 @@ export default function HomePage() {
         return
       }
 
-      // Armar lista de defectos para enviar
       let defectosFinales = [...defectosSeleccionados]
 
-      // Si 'OTRO' está seleccionado y hay texto manual, reemplazar 'OTRO' por el texto
       if (defectosSeleccionados.includes("OTRO") && formData.defecto.trim() !== "") {
         defectosFinales = defectosFinales.filter((d) => d !== "OTRO")
         defectosFinales.push(formData.defecto.trim())
       }
 
-      // Armar objeto reportData con defectos concatenados en un string separado por comas
       const reportData = {
         fecha: new Date().toISOString().split("T")[0],
         ...formData,
@@ -146,29 +108,21 @@ export default function HomePage() {
 
       const newReport = await createDefectReport(reportData)
 
-      // Subir todas las fotos si hay y guardar en tabla relacionada
       if (newReport.id && fotos.length > 0) {
         const uploadPromises = fotos.map((file) => uploadDefectPhoto(file, newReport.id!))
         const fotoUrls = await Promise.all(uploadPromises)
 
-        // Insertar URLs en tabla defect_report_photos
         for (const url of fotoUrls) {
           const { error } = await supabase.from("defect_report_photos").insert({
             report_id: newReport.id,
             foto_url: url,
           })
-          if (error) {
-            console.error("Error inserting photo record:", error)
-          }
+          if (error) console.error("Error inserting photo record:", error)
         }
       }
 
-      toast({
-        title: "Éxito",
-        description: "Reporte de defecto registrado correctamente",
-      })
+      toast({ title: "Éxito", description: "Reporte de defecto registrado correctamente" })
 
-      // Limpiar formulario y fotos
       setFormData({
         area: "",
         producto: "",
@@ -180,14 +134,13 @@ export default function HomePage() {
         cliente: "",
         defecto: "",
         descripcion: "",
+        cantidad: "",
       })
       setDefectosSeleccionados([])
       setFotos([])
 
       const fileInput = document.getElementById("foto") as HTMLInputElement
-      if (fileInput) {
-        fileInput.value = ""
-      }
+      if (fileInput) fileInput.value = ""
     } catch (error) {
       console.error("Error submitting report:", error)
       toast({
@@ -227,69 +180,26 @@ export default function HomePage() {
 
               {/* Información del Producto */}
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                <div>
-                  <Label htmlFor="producto">Producto *</Label>
-                  <Input
-                    id="producto"
-                    value={formData.producto}
-                    onChange={(e) => handleInputChange("producto", e.target.value)}
-                    placeholder="Ingresa el producto"
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="color">Color</Label>
-                  <Input
-                    id="color"
-                    value={formData.color}
-                    onChange={(e) => handleInputChange("color", e.target.value)}
-                    placeholder="Ingresa el color"
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="lf">LF</Label>
-                  <Input
-                    id="lf"
-                    value={formData.lf}
-                    onChange={(e) => handleInputChange("lf", e.target.value)}
-                    placeholder="Ingresa LF"
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="pt">PT</Label>
-                  <Input
-                    id="pt"
-                    value={formData.pt}
-                    onChange={(e) => handleInputChange("pt", e.target.value)}
-                    placeholder="Ingresa PT"
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="lp">LP</Label>
-                  <Input
-                    id="lp"
-                    value={formData.lp}
-                    onChange={(e) => handleInputChange("lp", e.target.value)}
-                    placeholder="Ingresa LP"
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="pedido">Pedido</Label>
-                  <Input
-                    id="pedido"
-                    value={formData.pedido}
-                    onChange={(e) => handleInputChange("pedido", e.target.value)}
-                    placeholder="Número de pedido"
-                  />
-                </div>
+                <InputField id="producto" label="Producto *" value={formData.producto} onChange={handleInputChange} />
+                <InputField id="color" label="Color" value={formData.color} onChange={handleInputChange} />
+                <InputField id="lf" label="LF" value={formData.lf} onChange={handleInputChange} />
+                <InputField id="pt" label="PT" value={formData.pt} onChange={handleInputChange} />
+                <InputField id="lp" label="LP" value={formData.lp} onChange={handleInputChange} />
+                <InputField id="pedido" label="Pedido" value={formData.pedido} onChange={handleInputChange} />
               </div>
 
+              <InputField id="cliente" label="Cliente" value={formData.cliente} onChange={handleInputChange} />
+
               <div>
-                <Label htmlFor="cliente">Cliente</Label>
+                <Label htmlFor="cantidad">Cantidad *</Label>
                 <Input
-                  id="cliente"
-                  value={formData.cliente}
-                  onChange={(e) => handleInputChange("cliente", e.target.value)}
-                  placeholder="Nombre del cliente"
+                  id="cantidad"
+                  type="number"
+                  min={1}
+                  value={formData.cantidad}
+                  onChange={(e) => handleInputChange("cantidad", e.target.value)}
+                  placeholder="Cantidad de piezas defectuosas"
+                  required
                 />
               </div>
 
@@ -311,7 +221,6 @@ export default function HomePage() {
                     ))}
                   </div>
 
-                  {/* Mostrar campo para defecto manual solo si 'OTRO' está seleccionado */}
                   {defectosSeleccionados.includes("OTRO") && (
                     <div className="mt-4">
                       <Label htmlFor="defectoManual">Escribe el defecto manualmente *</Label>
@@ -320,14 +229,13 @@ export default function HomePage() {
                         value={formData.defecto}
                         onChange={(e) => handleInputChange("defecto", e.target.value)}
                         placeholder="Describe el defecto"
-                        required={defectosSeleccionados.includes("OTRO")}
+                        required
                       />
                     </div>
                   )}
                 </div>
               )}
 
-              {/* Descripción */}
               <div>
                 <Label htmlFor="descripcion">Descripción del Defecto</Label>
                 <Textarea
@@ -339,7 +247,7 @@ export default function HomePage() {
                 />
               </div>
 
-              {/* Carga de Fotos (múltiples) */}
+              {/* Carga de Fotos */}
               <div>
                 <Label htmlFor="foto">Fotos del Defecto</Label>
                 <div className="mt-2">
@@ -371,7 +279,6 @@ export default function HomePage() {
                 </div>
               </div>
 
-              {/* Botón de Envío */}
               <div className="flex justify-end">
                 <Button type="submit" className="px-8" disabled={isSubmitting}>
                   {isSubmitting ? (
@@ -388,6 +295,21 @@ export default function HomePage() {
           </CardContent>
         </Card>
       </main>
+    </div>
+  )
+}
+
+// Componente reutilizable para inputs
+function InputField({ id, label, value, onChange }: { id: string, label: string, value: string, onChange: (f: string, v: string) => void }) {
+  return (
+    <div>
+      <Label htmlFor={id}>{label}</Label>
+      <Input
+        id={id}
+        value={value}
+        onChange={(e) => onChange(id, e.target.value)}
+        placeholder={`Ingresa ${label.toLowerCase()}`}
+      />
     </div>
   )
 }
