@@ -85,6 +85,9 @@ export default function HomePage() {
   // Nuevo estado para defectos múltiples seleccionados
   const [defectosSeleccionados, setDefectosSeleccionados] = useState<string[]>([])
 
+  // Estado para mostrar mensaje temporal de éxito
+  const [successMessage, setSuccessMessage] = useState("")
+
   const [fotos, setFotos] = useState<File[]>([])
   const [isSubmitting, setIsSubmitting] = useState(false)
   const { toast } = useToast()
@@ -158,6 +161,12 @@ export default function HomePage() {
         description: "Reporte de defecto registrado correctamente",
       })
 
+      // Mostrar mensaje temporal
+      setSuccessMessage("Registrado con éxito")
+      setTimeout(() => {
+        setSuccessMessage("")
+      }, 4000) // desaparece después de 4 segundos
+
       // Limpiar formulario y fotos
       setFormData({
         area: "",
@@ -200,6 +209,13 @@ export default function HomePage() {
             <CardTitle className="text-xl font-semibold">Registro de Defectos</CardTitle>
           </CardHeader>
           <CardContent>
+            {/* Mensaje temporal de éxito */}
+            {successMessage && (
+              <div className="mb-4 p-3 text-green-800 bg-green-100 rounded border border-green-300">
+                {successMessage}
+              </div>
+            )}
+
             <form onSubmit={handleSubmit} className="space-y-6">
               {/* Área */}
               <div>
