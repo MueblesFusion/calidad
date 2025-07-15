@@ -30,6 +30,7 @@ type Report = {
   cliente: string
   defecto: string
   descripcion: string
+  cantidad?: number
 }
 
 const supabase = createClient(
@@ -140,6 +141,7 @@ export default function ReportesPage() {
       Cliente: r.cliente,
       Defecto: r.defecto,
       Descripción: r.descripcion,
+      Cantidad: r.cantidad ?? 0,
     }))
 
     const worksheet = XLSX.utils.json_to_sheet(worksheetData)
@@ -192,6 +194,7 @@ export default function ReportesPage() {
           </div>
         </Card>
 
+        {/* TABLA SILLAS */}
         <Card>
           <CardHeader className="flex justify-between items-center">
             <CardTitle>Defectos - SILLAS</CardTitle>
@@ -221,6 +224,7 @@ export default function ReportesPage() {
                       <th className="border px-2 py-1">Cliente</th>
                       <th className="border px-2 py-1">Defecto</th>
                       <th className="border px-2 py-1">Descripción</th>
+                      <th className="border px-2 py-1">Cantidad</th>
                       <th className="border px-2 py-1">Acciones</th>
                     </tr>
                   </thead>
@@ -237,6 +241,7 @@ export default function ReportesPage() {
                         <td className="border px-2 py-1">{r.cliente}</td>
                         <td className="border px-2 py-1">{r.defecto}</td>
                         <td className="border px-2 py-1">{r.descripcion}</td>
+                        <td className="border px-2 py-1 text-center">{r.cantidad ?? "-"}</td>
                         <td className="border px-2 py-1 text-center">
                           <Button size="sm" onClick={() => obtenerFotos(r.id)}>
                             Ver Fotos
@@ -251,6 +256,7 @@ export default function ReportesPage() {
           </CardContent>
         </Card>
 
+        {/* TABLA SALAS */}
         <Card>
           <CardHeader className="flex justify-between items-center">
             <CardTitle>Defectos - SALAS</CardTitle>
@@ -280,6 +286,7 @@ export default function ReportesPage() {
                       <th className="border px-2 py-1">Cliente</th>
                       <th className="border px-2 py-1">Defecto</th>
                       <th className="border px-2 py-1">Descripción</th>
+                      <th className="border px-2 py-1">Cantidad</th>
                       <th className="border px-2 py-1">Acciones</th>
                     </tr>
                   </thead>
@@ -296,6 +303,7 @@ export default function ReportesPage() {
                         <td className="border px-2 py-1">{r.cliente}</td>
                         <td className="border px-2 py-1">{r.defecto}</td>
                         <td className="border px-2 py-1">{r.descripcion}</td>
+                        <td className="border px-2 py-1 text-center">{r.cantidad ?? "-"}</td>
                         <td className="border px-2 py-1 text-center">
                           <Button size="sm" onClick={() => obtenerFotos(r.id)}>
                             Ver Fotos
