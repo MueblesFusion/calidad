@@ -73,14 +73,16 @@ export default function DashboardPage() {
     setFilteredReports(reports)
   }
 
+  // Acumula la cantidad total de piezas defectuosas
   const totalDefectos = filteredReports.reduce((sum, report) => {
-    const defectos = report.defecto?.split(",").map((d) => d.trim()).filter(Boolean) || []
-    return sum + defectos.length
+    const cantidad = Number(report.cantidad) || 0
+    return sum + cantidad
   }, 0)
 
+  // Estadísticas totales por área sumando cantidad
   const areaStats = filteredReports.reduce((acc, report) => {
-    const defectos = report.defecto?.split(",").map((d) => d.trim()).filter(Boolean) || []
-    acc[report.area] = (acc[report.area] || 0) + defectos.length
+    const cantidad = Number(report.cantidad) || 0
+    acc[report.area] = (acc[report.area] || 0) + cantidad
     return acc
   }, {} as Record<string, number>)
 
@@ -90,10 +92,12 @@ export default function DashboardPage() {
     percentage: ((count / totalDefectos) * 100).toFixed(1),
   }))
 
+  // Estadísticas por defecto sumando cantidad
   const defectStats = filteredReports.reduce((acc, report) => {
+    const cantidad = Number(report.cantidad) || 0
     const defectos = report.defecto?.split(",").map((d) => d.trim()).filter(Boolean) || []
     for (const defecto of defectos) {
-      acc[defecto] = (acc[defecto] || 0) + 1
+      acc[defecto] = (acc[defecto] || 0) + cantidad
     }
     return acc
   }, {} as Record<string, number>)
@@ -113,11 +117,13 @@ export default function DashboardPage() {
     color: COLORS[index % COLORS.length],
   }))
 
+  // Defectos por área y tipo sumando cantidad
   const defectosPorArea = filteredReports.reduce((acc, report) => {
+    const cantidad = Number(report.cantidad) || 0
     const defectos = report.defecto?.split(",").map((d) => d.trim()).filter(Boolean) || []
     for (const defecto of defectos) {
       if (!acc[report.area]) acc[report.area] = {}
-      acc[report.area][defecto] = (acc[report.area][defecto] || 0) + 1
+      acc[report.area][defecto] = (acc[report.area][defecto] || 0) + cantidad
     }
     return acc
   }, {} as Record<string, Record<string, number>>)
@@ -147,6 +153,7 @@ export default function DashboardPage() {
       Defecto: report.defecto,
       Descripción: report.descripcion,
       "URL Foto": report.foto_url || "",
+      Cantidad: report.cantidad || "",
     }))
 
     const ws = XLSX.utils.json_to_sheet(dataToExport)
