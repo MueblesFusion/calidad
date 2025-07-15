@@ -5,7 +5,7 @@ import MobileMenu from "@/components/MobileMenu"
 import { Toaster } from "@/components/ui/sonner"
 
 export const metadata = {
-  title: "Calidad Muebles Fusion",
+  title: "Calidad - Muebles Fusion",
 };
 
 const inter = Inter({ subsets: ["latin"] })
