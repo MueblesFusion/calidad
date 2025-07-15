@@ -53,12 +53,10 @@ export default function CrearPlanPage() {
       }
     }
 
-
-    e.preventDefault()
     setIsSubmitting(true)
 
     try {
-      const { error } = await supabase.from("planes").insert([
+      const { error } = await supabase.from("planes_trabajo").insert([
         {
           ...formData,
           cantidad: parseInt(formData.cantidad) || 0,
