@@ -1,3 +1,4 @@
+TE QUEDASTE PEGADA? SOLO ENVIASTE ESTO: 
 "use client"
 
 import React, { useEffect, useState } from "react"
@@ -14,6 +15,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { useToast } from "@/hooks/use-toast"
 import { createClient } from "@supabase/supabase-js"
 import { Loader2 } from "lucide-react"
+import * as XLSX from "xlsx"  // Import XLSX para exportar Excel
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -62,6 +64,9 @@ export default function PlanesPage() {
   // Inputs revertir
   const [revertidoPor, setRevertidoPor] = useState("")
   const [liberacionSeleccionada, setLiberacionSeleccionada] = useState<Liberacion | null>(null)
+
+  // Nuevo estado para filtro de búsqueda
+  const [filtroTexto, setFiltroTexto] = useState("")
 
   // Cargar planes y liberaciones
   async function fetchData() {
@@ -257,9 +262,17 @@ export default function PlanesPage() {
     }
   }
 
-  // Render tabla por área
+  // Filtrar planes según filtroTexto
+  const planesFiltrados = planes.filter((plan) => {
+    const filtro = filtroTexto.trim().toLowerCase()
+    if (!filtro) return true
+    const textoPlan = `${plan.cliente} ${plan.pedido} ${plan.producto} ${plan.area} ${plan.color} ${plan.lf} ${plan.pt} ${plan.lp}`.toLowerCase()
+    return textoPlan.includes(filtro)
+  })
+
+  // Render tabla por área con planes filtrados
   function renderTabla(area: "SILLAS" | "SALAS") {
-    const planesArea = planes.filter((p) => p.area === area)
+    const planesArea = planesFiltrados.filter((p) => p.area === area)
 
     return (
       <Card key={area}>
@@ -371,10 +384,62 @@ export default function PlanesPage() {
     )
   }
 
+  // Función para exportar liberaciones filtradas a Excel
+  function exportarLiberacionesAExcel() {
+    const filtro = filtroTexto.trim().toLowerCase()
+    const data: any[] = []
+
+    planesFiltrados.forEach((plan) => {
+      const historial = liberaciones[plan.id] || []
+      historial.forEach((lib) => {
+        data.push({
+          Fecha: new Date(lib.creado_en).toLocaleString(),
+          Área: plan.area,
+          Producto: plan.producto,
+          Cliente: plan.cliente,
+          Cantidad: lib.cantidad_liberada,
+          "Liberado por": lib.liberado_por,
+          Estado: lib.revertido ? "Revertido" : "Liberado",
+          "Revertido por": lib.revertido_por || "-",
+          "Fecha reversión": lib.revertido_en ? new Date(lib.revertido_en).toLocaleString() : "-",
+        })
+      })
+    })
+
+    if (data.length === 0) {
+      toast({
+        title: "Sin datos",
+        description: "No hay liberaciones para exportar con el filtro aplicado",
+        variant: "destructive",
+      })
+      return
+    }
+
+    const worksheet = XLSX.utils.json_to_sheet(data)
+    const workbook = XLSX.utils.book_new()
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Liberaciones")
+    XLSX.writeFile(workbook, "liberaciones.xlsx")
+  }
+
   return (
     <div className="min-h-screen bg-gray-50 p-4">
       <div className="max-w-7xl mx-auto space-y-6">
         <h1 className="text-2xl font-bold mb-4">Planes de Trabajo</h1>
+
+        {/* Input filtro y botón exportar */}
+        <div className="flex flex-col md:flex-row md:items-center md:space-x-4 mb-4">
+          <Input
+            type="text"
+            placeholder="Buscar por cliente, pedido, producto, área..."
+            value={filtroTexto}
+            onChange={(e) => setFiltroTexto(e.target.value)}
+            className="mb-2 md:mb-0"
+          />
+          <Button onClick={exportarLiberacionesAExcel} variant="secondary" className="whitespace-nowrap">
+            Exportar Liberaciones
+          </Button>
+        </div>
+
         {loading ? (
           <div className="flex justify-center items-center h-40">
             <Loader2 className="animate-spin h-8 w-8 text-gray-600" />
@@ -415,26 +480,23 @@ export default function PlanesPage() {
                   value={cantidadLiberar}
                   onChange={(e) => setCantidadLiberar(parseInt(e.target.value))}
                   required
-                  autoFocus
+                                    autoFocus
                 />
               </div>
               <div>
-                <Label>Quién libera</Label>
+                <Label>Quien libera</Label>
                 <Input
                   type="text"
                   value={liberadoPor}
                   onChange={(e) => setLiberadoPor(e.target.value)}
                   required
-                  placeholder="Nombre"
                 />
               </div>
               <div className="flex justify-end space-x-2">
-                <Button type="button" variant="outline" onClick={() => setModalLiberarOpen(false)}>
+                <Button type="button" variant="secondary" onClick={() => setModalLiberarOpen(false)}>
                   Cancelar
                 </Button>
-                <Button type="submit" disabled={cantidadLiberar <= 0 || liberadoPor.trim() === ""}>
-                  Liberar
-                </Button>
+                <Button type="submit">Guardar</Button>
               </div>
             </form>
           </DialogContent>
@@ -461,28 +523,20 @@ export default function PlanesPage() {
               className="space-y-4 p-2"
             >
               <div>
-                <Label>Cantidad a revertir</Label>
-                <Input
-                  type="number"
-                  value={liberacionSeleccionada?.cantidad_liberada ?? 0}
-                  disabled
-                />
-              </div>
-              <div>
-                <Label>Quién revierte</Label>
+                <Label>Quien revierte</Label>
                 <Input
                   type="text"
                   value={revertidoPor}
                   onChange={(e) => setRevertidoPor(e.target.value)}
                   required
-                  placeholder="Nombre"
+                  autoFocus
                 />
               </div>
               <div className="flex justify-end space-x-2">
-                <Button type="button" variant="outline" onClick={() => setModalRevertirOpen(false)}>
+                <Button type="button" variant="secondary" onClick={() => setModalRevertirOpen(false)}>
                   Cancelar
                 </Button>
-                <Button type="submit" disabled={revertidoPor.trim() === ""}>
+                <Button type="submit" variant="destructive">
                   Revertir
                 </Button>
               </div>
@@ -493,3 +547,4 @@ export default function PlanesPage() {
     </div>
   )
 }
+
