@@ -89,14 +89,15 @@ export default function DashboardPage() {
     percentage: ((count / filteredReports.length) * 100).toFixed(1),
   }))
 
-  // Estadísticas por defecto
-  const defectStats = filteredReports.reduce(
-    (acc, report) => {
-      acc[report.defecto] = (acc[report.defecto] || 0) + 1
-      return acc
-    },
-    {} as Record<string, number>,
-  )
+  // Estadísticas por defecto (procesando defectos múltiples separados por coma)
+  const defectStats = filteredReports.reduce((acc, report) => {
+    if (!report.defecto) return acc
+    const defectos = report.defecto.split(",").map((d) => d.trim()).filter(Boolean)
+    for (const d of defectos) {
+      acc[d] = (acc[d] || 0) + 1
+    }
+    return acc
+  }, {} as Record<string, number>)
 
   const topDefects = Object.entries(defectStats)
     .sort(([, a], [, b]) => b - a)
