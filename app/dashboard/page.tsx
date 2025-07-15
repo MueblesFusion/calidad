@@ -5,10 +5,19 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { ArrowLeft, Download, Filter, Loader2 } from "lucide-react"
-import Link from "next/link"
-import Image from "next/image"
-import { Bar, BarChart, ResponsiveContainer, XAxis, YAxis, CartesianGrid, Tooltip, PieChart, Pie, Cell } from "recharts"
+import { Download, Filter, Loader2 } from "lucide-react"
+import {
+  Bar,
+  BarChart,
+  ResponsiveContainer,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  PieChart,
+  Pie,
+  Cell,
+} from "recharts"
 import * as XLSX from "xlsx"
 import { getDefectReports, type DefectReport } from "@/lib/database"
 import { useToast } from "@/hooks/use-toast"
@@ -35,12 +44,7 @@ export default function DashboardPage() {
       setReports(data)
       setFilteredReports(data)
     } catch (error) {
-      console.error("Error loading reports:", error)
-      toast({
-        title: "Error",
-        description: "No se pudieron cargar los reportes",
-        variant: "destructive",
-      })
+      toast({ title: "Error", description: "No se pudieron cargar los reportes", variant: "destructive" })
     } finally {
       setIsLoading(false)
     }
@@ -57,12 +61,7 @@ export default function DashboardPage() {
       const filtered = await getDefectReports(startDate, endDate)
       setFilteredReports(filtered)
     } catch (error) {
-      console.error("Error filtering reports:", error)
-      toast({
-        title: "Error",
-        description: "Error al filtrar los reportes",
-        variant: "destructive",
-      })
+      toast({ title: "Error", description: "Error al filtrar los reportes", variant: "destructive" })
     } finally {
       setIsFiltering(false)
     }
@@ -74,17 +73,13 @@ export default function DashboardPage() {
     setFilteredReports(reports)
   }
 
-  // Total de defectos individuales (para estadísticas)
   const totalDefectos = filteredReports.reduce((sum, report) => {
-    if (!report.defecto) return sum
-    const defectos = report.defecto.split(",").map((d) => d.trim()).filter(Boolean)
+    const defectos = report.defecto?.split(",").map((d) => d.trim()).filter(Boolean) || []
     return sum + defectos.length
   }, 0)
 
-  // Estadísticas por área (cuenta defectos, no reportes)
   const areaStats = filteredReports.reduce((acc, report) => {
-    if (!report.defecto) return acc
-    const defectos = report.defecto.split(",").map((d) => d.trim()).filter(Boolean)
+    const defectos = report.defecto?.split(",").map((d) => d.trim()).filter(Boolean) || []
     acc[report.area] = (acc[report.area] || 0) + defectos.length
     return acc
   }, {} as Record<string, number>)
@@ -95,7 +90,6 @@ export default function DashboardPage() {
     percentage: ((count / totalDefectos) * 100).toFixed(1),
   }))
 
-  // Estadísticas por defecto individual
   const defectStats = filteredReports.reduce((acc, report) => {
     const defectos = report.defecto?.split(",").map((d) => d.trim()).filter(Boolean) || []
     for (const defecto of defectos) {
@@ -108,7 +102,7 @@ export default function DashboardPage() {
     .sort(([, a], [, b]) => b - a)
     .slice(0, 10)
     .map(([defecto, count]) => ({
-      defecto: defecto.length > 20 ? defecto.substring(0, 20) + "..." : defecto,
+      defecto: defecto.length > 20 ? defecto.slice(0, 20) + "..." : defecto,
       count,
       percentage: ((count / totalDefectos) * 100).toFixed(1),
     }))
@@ -117,6 +111,26 @@ export default function DashboardPage() {
     name: item.area,
     value: item.count,
     color: COLORS[index % COLORS.length],
+  }))
+
+  // Nuevo: defectos por tipo por área
+  const defectosPorArea = filteredReports.reduce((acc, report) => {
+    const defectos = report.defecto?.split(",").map((d) => d.trim()).filter(Boolean) || []
+    for (const defecto of defectos) {
+      if (!acc[report.area]) acc[report.area] = {}
+      acc[report.area][defecto] = (acc[report.area][defecto] || 0) + 1
+    }
+    return acc
+  }, {} as Record<string, Record<string, number>>)
+
+  const defectosSillasData = Object.entries(defectosPorArea["SILLAS"] || {}).map(([defecto, count]) => ({
+    defecto,
+    count,
+  }))
+
+  const defectosSalasData = Object.entries(defectosPorArea["SALAS"] || {}).map(([defecto, count]) => ({
+    defecto,
+    count,
   }))
 
   const exportToExcel = () => {
@@ -147,10 +161,8 @@ export default function DashboardPage() {
   if (isLoading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="flex items-center space-x-2">
-          <Loader2 className="h-6 w-6 animate-spin" />
-          <span>Cargando reportes...</span>
-        </div>
+        <Loader2 className="h-6 w-6 animate-spin mr-2" />
+        Cargando reportes...
       </div>
     )
   }
@@ -158,16 +170,12 @@ export default function DashboardPage() {
   return (
     <div className="min-h-screen bg-gray-50">
       <header className="bg-white shadow-sm border-b">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            <div className="flex items-center space-x-4">
-              <h1 className="text-2xl font-bold text-gray-900">Estadísticas de Defectos</h1>
-            </div>
-            <Button onClick={exportToExcel} className="bg-green-600 hover:bg-green-700 flex items-center space-x-2">
-              <Download className="h-4 w-4" />
-              <span>Exportar Excel</span>
-            </Button>
-          </div>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex justify-between items-center h-16">
+          <h1 className="text-2xl font-bold text-gray-900">Estadísticas de Defectos</h1>
+          <Button onClick={exportToExcel} className="bg-green-600 hover:bg-green-700 text-white">
+            <Download className="h-4 w-4 mr-2" />
+            Exportar Excel
+          </Button>
         </div>
       </header>
 
@@ -175,13 +183,13 @@ export default function DashboardPage() {
         {/* Filtros */}
         <Card className="mb-8">
           <CardHeader>
-            <CardTitle className="flex items-center space-x-2">
+            <CardTitle className="flex items-center gap-2">
               <Filter className="h-5 w-5" />
-              <span>Filtros de Fecha</span>
+              Filtros de Fecha
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="flex flex-wrap items-end gap-4">
+            <div className="flex flex-wrap gap-4 items-end">
               <div>
                 <Label htmlFor="startDate">Fecha Inicio</Label>
                 <Input id="startDate" type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
@@ -191,14 +199,8 @@ export default function DashboardPage() {
                 <Input id="endDate" type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} />
               </div>
               <Button onClick={handleDateFilter} disabled={isFiltering}>
-                {isFiltering ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Filtrando...
-                  </>
-                ) : (
-                  "Aplicar Filtro"
-                )}
+                {isFiltering ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+                Aplicar Filtro
               </Button>
               <Button variant="outline" onClick={clearFilter}>
                 Limpiar
@@ -207,41 +209,29 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
 
-        {/* Resumen */}
+        {/* Totales */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total Defectos</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{totalDefectos}</div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Defectos Sillas</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{areaStats.SILLAS || 0}</div>
-              <p className="text-xs text-muted-foreground">
-                {areaStats.SILLAS ? ((areaStats.SILLAS / totalDefectos) * 100).toFixed(1) : 0}% del total
-              </p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Defectos Salas</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{areaStats.SALAS || 0}</div>
-              <p className="text-xs text-muted-foreground">
-                {areaStats.SALAS ? ((areaStats.SALAS / totalDefectos) * 100).toFixed(1) : 0}% del total
-              </p>
-            </CardContent>
-          </Card>
+          {["Total Defectos", "Defectos Sillas", "Defectos Salas"].map((title, i) => {
+            const value = i === 0 ? totalDefectos : areaStats[title.split(" ")[1]] || 0
+            return (
+              <Card key={title}>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm">{title}</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">{value}</div>
+                  {i > 0 && (
+                    <p className="text-xs text-muted-foreground">
+                      {(value && totalDefectos ? ((value / totalDefectos) * 100).toFixed(1) : 0) + "%"} del total
+                    </p>
+                  )}
+                </CardContent>
+              </Card>
+            )
+          })}
         </div>
 
-        {/* Gráficos */}
+        {/* Gráficos de Área */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
           <Card>
             <CardHeader>
@@ -253,7 +243,7 @@ export default function DashboardPage() {
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis dataKey="area" />
                   <YAxis />
-                  <Tooltip formatter={(value) => [value, "Cantidad"]} labelFormatter={(label) => `Área: ${label}`} />
+                  <Tooltip />
                   <Bar dataKey="count" fill="#8884d8" />
                 </BarChart>
               </ResponsiveContainer>
@@ -271,10 +261,9 @@ export default function DashboardPage() {
                     data={pieData}
                     cx="50%"
                     cy="50%"
-                    labelLine={false}
-                    label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
                     outerRadius={80}
                     fill="#8884d8"
+                    label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
                     dataKey="value"
                   >
                     {pieData.map((entry, index) => (
@@ -283,6 +272,43 @@ export default function DashboardPage() {
                   </Pie>
                   <Tooltip />
                 </PieChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Gráficos por Tipo de Defecto por Área */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+          <Card>
+            <CardHeader>
+              <CardTitle>Defectos por Tipo (SILLAS)</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <ResponsiveContainer width="100%" height={300}>
+                <BarChart data={defectosSillasData}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="defecto" />
+                  <YAxis />
+                  <Tooltip />
+                  <Bar dataKey="count" fill="#00C49F" />
+                </BarChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Defectos por Tipo (SALAS)</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <ResponsiveContainer width="100%" height={300}>
+                <BarChart data={defectosSalasData}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="defecto" />
+                  <YAxis />
+                  <Tooltip />
+                  <Bar dataKey="count" fill="#FF8042" />
+                </BarChart>
               </ResponsiveContainer>
             </CardContent>
           </Card>
@@ -299,7 +325,7 @@ export default function DashboardPage() {
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis type="number" />
                 <YAxis dataKey="defecto" type="category" width={150} />
-                <Tooltip formatter={(value) => [value, "Cantidad"]} labelFormatter={(label) => `Defecto: ${label}`} />
+                <Tooltip />
                 <Bar dataKey="count" fill="#82ca9d" />
               </BarChart>
             </ResponsiveContainer>
