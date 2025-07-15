@@ -1,4 +1,3 @@
-TE QUEDASTE PEGADA? SOLO ENVIASTE ESTO: 
 "use client"
 
 import React, { useEffect, useState } from "react"
