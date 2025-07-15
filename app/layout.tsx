@@ -4,6 +4,10 @@ import Sidebar from "@/components/Sidebar"
 import MobileMenu from "@/components/MobileMenu"
 import { Toaster } from "@/components/ui/sonner"
 
+export const metadata = {
+  title: "Calidad Muebles Fusion",
+};
+
 const inter = Inter({ subsets: ["latin"] })
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
