@@ -6,7 +6,13 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import { Loader2 } from "lucide-react"
 import { createClient } from "@supabase/supabase-js"
 import { useToast } from "@/hooks/use-toast"
@@ -38,9 +44,11 @@ export default function CrearPlanPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
-    // Validación de campos vacíos
     for (const key in formData) {
-      if (!formData[key as keyof typeof formData] || (key === "cantidad" && parseInt(formData.cantidad) <= 0)) {
+      if (
+        !formData[key as keyof typeof formData] ||
+        (key === "cantidad" && parseInt(formData.cantidad) <= 0)
+      ) {
         toast({
           title: "Datos incompletos",
           description:
@@ -58,9 +66,17 @@ export default function CrearPlanPage() {
     try {
       const { error } = await supabase.from("planes_trabajo").insert([
         {
-          ...formData,
-          cantidad: parseInt(formData.cantidad) || 0,
-          creado_en: new Date().toISOString(),
+          area: formData.area,
+          cantidad: parseInt(formData.cantidad),
+          producto: formData.producto,
+          color: formData.color,
+          lf: formData.lf,
+          pt: formData.pt,
+          lp: formData.lp,
+          pedido: formData.pedido,
+          cliente: formData.cliente,
+          liberado: 0,
+          fecha: new Date().toISOString().split("T")[0], // YYYY-MM-DD
         },
       ])
 
@@ -107,7 +123,10 @@ export default function CrearPlanPage() {
               {/* Área */}
               <div>
                 <Label htmlFor="area">Área *</Label>
-                <Select value={formData.area} onValueChange={(value) => handleInputChange("area", value)}>
+                <Select
+                  value={formData.area}
+                  onValueChange={(value) => handleInputChange("area", value)}
+                >
                   <SelectTrigger>
                     <SelectValue placeholder="Selecciona un área" />
                   </SelectTrigger>
