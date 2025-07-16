@@ -14,7 +14,7 @@ import { useToast } from "@/hooks/use-toast"
 import { Download, X } from "lucide-react"
 import Image from "next/image"
 import { createClient } from "@supabase/supabase-js"
-import * as XLSX from "xlsx"
+import * as XLSX from "xlsx-style"
 
 type Report = {
   id: string
