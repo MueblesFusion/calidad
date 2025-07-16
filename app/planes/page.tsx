@@ -42,6 +42,7 @@ type Liberacion = {
   cantidad: number
   fecha: string
   usuario: string
+  revertida?: boolean
 }
 
 export default function PlanesPage() {
@@ -72,7 +73,7 @@ export default function PlanesPage() {
 
       const { data: liberacionesData } = await supabase
         .from("liberaciones")
-        .select("id, plan_id, cantidad, fecha, usuario")
+        .select("id, plan_id, cantidad, fecha, usuario, revertida")
         .order("fecha", { ascending: false })
 
       setPlanes(planesData || [])
@@ -156,6 +157,43 @@ export default function PlanesPage() {
       toast({
         title: "Error",
         description: "No se pudo registrar la liberación",
+        variant: "destructive",
+      })
+    }
+  }
+
+  async function handleRevertirLiberacion(liberacion: Liberacion) {
+    const confirmar = confirm("¿Estás seguro de revertir esta liberación?")
+    if (!confirmar || !selectedPlan) return
+
+    try {
+      const { error: insertError } = await supabase.from("liberaciones").insert([
+        {
+          plan_id: selectedPlan.id,
+          cantidad: -liberacion.cantidad,
+          usuario: `Reversión de ${liberacion.usuario}`,
+          fecha: new Date().toISOString(),
+        },
+      ])
+      if (insertError) throw insertError
+
+      const { error: updateError } = await supabase
+        .from("liberaciones")
+        .update({ revertida: true })
+        .eq("id", liberacion.id)
+      if (updateError) throw updateError
+
+      toast({
+        title: "Liberación revertida",
+        description: `Se revirtió la liberación de ${liberacion.cantidad} piezas.`,
+      })
+
+      await fetchData()
+    } catch (error) {
+      console.error(error)
+      toast({
+        title: "Error al revertir",
+        description: "No se pudo revertir la liberación",
         variant: "destructive",
       })
     }
@@ -298,6 +336,53 @@ export default function PlanesPage() {
           </>
         )}
 
+        {/* Modal Historial */}
+        <Dialog open={modalHistorialOpen} onOpenChange={setModalHistorialOpen}>
+          <DialogContent className="max-w-lg">
+            <DialogHeader>
+              <DialogTitle>Historial de Liberaciones</DialogTitle>
+            </DialogHeader>
+            <div className="mt-4 space-y-2">
+              {selectedPlan && liberaciones[selectedPlan.id]?.length ? (
+                <table className="w-full text-sm border">
+                  <thead>
+                    <tr className="bg-gray-200">
+                      <th className="border px-2 py-1">Cantidad</th>
+                      <th className="border px-2 py-1">Usuario</th>
+                      <th className="border px-2 py-1">Fecha</th>
+                      <th className="border px-2 py-1">Acciones</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {liberaciones[selectedPlan.id].map((lib) => (
+                      <tr key={lib.id}>
+                        <td className="border px-2 py-1 text-center">{lib.cantidad}</td>
+                        <td className="border px-2 py-1 text-center">{lib.usuario}</td>
+                        <td className="border px-2 py-1 text-center">{new Date(lib.fecha).toLocaleString()}</td>
+                        <td className="border px-2 py-1 text-center">
+                          {lib.revertida ? (
+                            <span className="text-gray-400 text-xs italic">Revertida</span>
+                          ) : (
+                            <Button
+                              size="sm"
+                              variant="destructive"
+                              onClick={() => handleRevertirLiberacion(lib)}
+                            >
+                              Revertir
+                            </Button>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              ) : (
+                <p className="text-muted-foreground text-sm">No hay liberaciones registradas para este plan.</p>
+              )}
+            </div>
+          </DialogContent>
+        </Dialog>
+
         {/* Modal Liberar */}
         <Dialog open={modalLiberarOpen} onOpenChange={setModalLiberarOpen}>
           <DialogContent className="max-w-md">
@@ -339,39 +424,6 @@ export default function PlanesPage() {
                 <Button type="submit">Guardar</Button>
               </div>
             </form>
-          </DialogContent>
-        </Dialog>
-
-        {/* Modal Historial */}
-        <Dialog open={modalHistorialOpen} onOpenChange={setModalHistorialOpen}>
-          <DialogContent className="max-w-lg">
-            <DialogHeader>
-              <DialogTitle>Historial de Liberaciones</DialogTitle>
-            </DialogHeader>
-            <div className="mt-4 space-y-2">
-              {selectedPlan && liberaciones[selectedPlan.id]?.length ? (
-                <table className="w-full text-sm border">
-                  <thead>
-                    <tr className="bg-gray-200">
-                      <th className="border px-2 py-1">Cantidad</th>
-                      <th className="border px-2 py-1">Usuario</th>
-                      <th className="border px-2 py-1">Fecha</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {liberaciones[selectedPlan.id].map((lib) => (
-                      <tr key={lib.id}>
-                        <td className="border px-2 py-1 text-center">{lib.cantidad}</td>
-                        <td className="border px-2 py-1 text-center">{lib.usuario}</td>
-                        <td className="border px-2 py-1 text-center">{new Date(lib.fecha).toLocaleString()}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              ) : (
-                <p className="text-muted-foreground text-sm">No hay liberaciones registradas para este plan.</p>
-              )}
-            </div>
           </DialogContent>
         </Dialog>
       </div>
