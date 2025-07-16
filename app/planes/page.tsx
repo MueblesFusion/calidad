@@ -96,10 +96,10 @@ export default function PlanesPage() {
     }
   }
 
-  // Sumamos todas las cantidades (positivas y negativas)
+  // CORRECCIÓN: Solo sumamos cantidades de liberaciones NO revertidas
   function calcularLiberado(planId: string): number {
     const libs = liberaciones[planId] || []
-    return libs.reduce((sum, l) => sum + l.cantidad, 0)
+    return libs.filter(l => !l.revertida).reduce((sum, l) => sum + l.cantidad, 0)
   }
 
   function calcularPendiente(plan: PlanTrabajo): number {
@@ -165,7 +165,6 @@ export default function PlanesPage() {
   }
 
   async function handleRevertirLiberacion(liberacionId: string) {
-    console.log("Intentando revertir liberacion con id:", liberacionId)
     try {
       const { error } = await supabase
         .from("liberaciones")
@@ -179,7 +178,7 @@ export default function PlanesPage() {
       })
       await fetchData()
     } catch (error) {
-      console.error("Error al revertir liberacion:", error)
+      console.error(error)
       toast({
         title: "Error",
         description: "No se pudo revertir la liberación",
@@ -398,12 +397,9 @@ export default function PlanesPage() {
                         <td className="border px-2 py-1 text-center">
                           {!lib.revertida && (
                             <Button
-                              size="sm"
+                              size="xs"
                               variant="destructive"
-                              onClick={() => {
-                                console.log("Revirtiendo liberación:", lib.id)
-                                handleRevertirLiberacion(lib.id)
-                              }}
+                              onClick={() => handleRevertirLiberacion(lib.id)}
                               className="whitespace-nowrap"
                             >
                               Revertir
