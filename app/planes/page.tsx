@@ -98,8 +98,7 @@ export default function PlanesPage() {
 
   function calcularLiberado(planId: string): number {
     const libs = liberaciones[planId] || []
-    // Solo sumamos las cantidades de liberaciones NO revertidas
-    return libs.reduce((sum, l) => (l.revertida ? sum : sum + l.cantidad), 0)
+    return libs.reduce((sum, l) => sum + (l.revertida ? 0 : l.cantidad), 0)
   }
 
   function calcularPendiente(plan: PlanTrabajo): number {
@@ -174,7 +173,7 @@ export default function PlanesPage() {
 
       toast({
         title: "Liberación revertida",
-        description: "Se ha marcado la liberación como revertida",
+        description: "Se ha revertido la liberación",
       })
       await fetchData()
     } catch (error) {
@@ -207,7 +206,6 @@ export default function PlanesPage() {
           Cliente: plan.cliente,
           Cantidad: lib.cantidad,
           Usuario: lib.usuario,
-          Revertida: lib.revertida ? "Sí" : "No",
         })
       })
     })
@@ -383,7 +381,6 @@ export default function PlanesPage() {
                       <th className="border px-2 py-1">Cantidad</th>
                       <th className="border px-2 py-1">Usuario</th>
                       <th className="border px-2 py-1">Fecha</th>
-                      <th className="border px-2 py-1">Revertida</th>
                       <th className="border px-2 py-1">Acción</th>
                     </tr>
                   </thead>
@@ -393,15 +390,13 @@ export default function PlanesPage() {
                         <td className="border px-2 py-1 text-center">{lib.cantidad}</td>
                         <td className="border px-2 py-1 text-center">{lib.usuario}</td>
                         <td className="border px-2 py-1 text-center">{new Date(lib.fecha).toLocaleString()}</td>
-                        <td className="border px-2 py-1 text-center">{lib.revertida ? "Sí" : "No"}</td>
                         <td className="border px-2 py-1 text-center">
                           {!lib.revertida && (
                             <Button
-                              type="button"
                               size="sm"
                               variant="destructive"
+                              type="button"
                               onClick={() => handleRevertirLiberacion(lib.id)}
-                              className="whitespace-nowrap"
                             >
                               Revertir
                             </Button>
