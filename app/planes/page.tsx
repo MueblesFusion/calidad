@@ -66,15 +66,17 @@ export default function PlanesPage() {
   async function fetchData() {
     setLoading(true)
     try {
-      const { data: planesData } = await supabase
+      const { data: planesData, error: planesError } = await supabase
         .from("planes_trabajo")
         .select("*")
         .order("fecha", { ascending: false })
+      if (planesError) throw planesError
 
-      const { data: liberacionesData } = await supabase
+      const { data: liberacionesData, error: liberacionesError } = await supabase
         .from("liberaciones")
         .select("id, plan_id, cantidad, fecha, usuario, revertida")
         .order("fecha", { ascending: false })
+      if (liberacionesError) throw liberacionesError
 
       setPlanes(planesData || [])
 
@@ -96,11 +98,11 @@ export default function PlanesPage() {
     }
   }
 
-  // CORRECCIÓN: sólo sumar cantidades NO revertidas
+  // Suma solo liberaciones NO revertidas
   function calcularLiberado(planId: string): number {
     const libs = liberaciones[planId] || []
     return libs
-      .filter(l => !l.revertida)
+      .filter((l) => !l.revertida)
       .reduce((sum, l) => sum + l.cantidad, 0)
   }
 
@@ -396,15 +398,13 @@ export default function PlanesPage() {
                         <td className="border px-2 py-1 text-center">{new Date(lib.fecha).toLocaleString()}</td>
                         <td className="border px-2 py-1 text-center">
                           {!lib.revertida && (
-                            <Button
+                            <button
                               type="button"
-                              size="sm"
-                              variant="destructive"
                               onClick={() => handleRevertirLiberacion(lib.id)}
-                              className="whitespace-nowrap"
+                              className="inline-block px-2 py-1 text-sm font-medium text-white bg-red-600 rounded hover:bg-red-700"
                             >
                               Revertir
-                            </Button>
+                            </button>
                           )}
                         </td>
                       </tr>
