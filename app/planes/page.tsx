@@ -96,10 +96,12 @@ export default function PlanesPage() {
     }
   }
 
-  // Calcula sumando solo cantidades de liberaciones NO revertidas
+  // CORRECCIÓN: sólo sumar cantidades NO revertidas
   function calcularLiberado(planId: string): number {
     const libs = liberaciones[planId] || []
-    return libs.reduce((sum, l) => (l.revertida ? sum : sum + l.cantidad), 0)
+    return libs
+      .filter(l => !l.revertida)
+      .reduce((sum, l) => sum + l.cantidad, 0)
   }
 
   function calcularPendiente(plan: PlanTrabajo): number {
@@ -202,7 +204,7 @@ export default function PlanesPage() {
       historial.forEach((lib) => {
         data.push({
           Fecha: new Date(lib.fecha).toLocaleString(),
-          Area: plan.area,
+          Área: plan.area,
           Producto: plan.producto,
           Cliente: plan.cliente,
           Cantidad: lib.cantidad,
