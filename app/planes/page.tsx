@@ -96,10 +96,12 @@ export default function PlanesPage() {
     }
   }
 
-  // Aquí está el cambio principal: sumamos todas las cantidades (positivas y negativas)
+  // ✅ Ya no cuenta liberaciones revertidas
   function calcularLiberado(planId: string): number {
     const libs = liberaciones[planId] || []
-    return libs.reduce((sum, l) => sum + l.cantidad, 0)
+    return libs
+      .filter((l) => !l.revertida)
+      .reduce((sum, l) => sum + l.cantidad, 0)
   }
 
   function calcularPendiente(plan: PlanTrabajo): number {
