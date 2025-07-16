@@ -168,7 +168,6 @@ export default function PlanesPage() {
     return textoPlan.includes(filtro)
   })
 
-  // ----------- Función actualizada para exportar con columnas completas y estilo ----------
   function exportarLiberacionesAExcel() {
     const data: any[] = []
 
@@ -222,7 +221,6 @@ export default function PlanesPage() {
       "Pendiente",
     ]
 
-    // Escribir encabezados manualmente con estilos
     headers.forEach((header, colIdx) => {
       const cellRef = XLSX.utils.encode_cell({ c: colIdx, r: 0 })
       worksheet[cellRef] = {
@@ -242,8 +240,7 @@ export default function PlanesPage() {
       }
     })
 
-    // Estilos filas alternadas y bordes
-    const totalRows = data.length + 1 // filas totales incluyendo encabezado
+    const totalRows = data.length + 1
     for (let row = 1; row < totalRows; row++) {
       const fillColor = row % 2 === 0 ? "FFFFFF" : "F2F2F2"
       for (let col = 0; col < headers.length; col++) {
@@ -268,21 +265,20 @@ export default function PlanesPage() {
       }
     }
 
-    // Anchos columnas aproximados
     worksheet["!cols"] = [
-      { wch: 10 }, // Área
-      { wch: 20 }, // Fecha de liberación
-      { wch: 15 }, // Cantidad liberada
-      { wch: 25 }, // Producto
-      { wch: 15 }, // Color
-      { wch: 8 },  // LF
-      { wch: 8 },  // PT
-      { wch: 8 },  // LP
-      { wch: 15 }, // Pedido
-      { wch: 25 }, // Cliente
-      { wch: 10 }, // Cantidad
-      { wch: 10 }, // Liberado
-      { wch: 10 }, // Pendiente
+      { wch: 10 },
+      { wch: 20 },
+      { wch: 15 },
+      { wch: 25 },
+      { wch: 15 },
+      { wch: 8 },
+      { wch: 8 },
+      { wch: 8 },
+      { wch: 15 },
+      { wch: 25 },
+      { wch: 10 },
+      { wch: 10 },
+      { wch: 10 },
     ]
 
     worksheet["!autofilter"] = { ref: `A1:M${totalRows}` }
@@ -292,10 +288,20 @@ export default function PlanesPage() {
 
     XLSX.writeFile(workbook, "liberaciones.xlsx")
   }
-  // ----------- Fin función exportar -----------
 
+  // Función renderTabla actualizada para agrupar por LP (lote)
   function renderTabla(area: "SILLAS" | "SALAS") {
     const planesArea = planesFiltrados.filter((p) => p.area === area)
+
+    // Agrupar planes por lote (lp)
+    const gruposPorLp: Record<string, PlanTrabajo[]> = {}
+    planesArea.forEach((plan) => {
+      if (!gruposPorLp[plan.lp]) gruposPorLp[plan.lp] = []
+      gruposPorLp[plan.lp].push(plan)
+    })
+
+    const lotesOrdenados = Object.keys(gruposPorLp).sort()
+
     return (
       <Card key={area}>
         <CardHeader className="flex justify-between items-center">
@@ -305,58 +311,68 @@ export default function PlanesPage() {
           {planesArea.length === 0 ? (
             <p>No hay planes registrados para {area}.</p>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full border text-sm min-w-[1000px]">
-                <thead className="bg-gray-100">
-                  <tr>
-                    <th className="border px-2 py-1">Fecha</th>
-                    <th className="border px-2 py-1">Producto</th>
-                    <th className="border px-2 py-1">Color</th>
-                    <th className="border px-2 py-1">LF</th>
-                    <th className="border px-2 py-1">PT</th>
-                    <th className="border px-2 py-1">LP</th>
-                    <th className="border px-2 py-1">Pedido</th>
-                    <th className="border px-2 py-1">Cliente</th>
-                    <th className="border px-2 py-1">Cantidad</th>
-                    <th className="border px-2 py-1">Liberado</th>
-                    <th className="border px-2 py-1">Pendiente</th>
-                    <th className="border px-2 py-1">Acciones</th>
-                    <th className="border px-2 py-1">Historial</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {planesArea.map((plan) => {
-                    const liberado = calcularLiberado(plan.id)
-                    const pendiente = calcularPendiente(plan)
-                    return (
-                      <tr key={plan.id}>
-                        <td className="border px-2 py-1">{new Date(plan.fecha).toLocaleDateString()}</td>
-                        <td className="border px-2 py-1">{plan.producto}</td>
-                        <td className="border px-2 py-1">{plan.color}</td>
-                        <td className="border px-2 py-1">{plan.lf}</td>
-                        <td className="border px-2 py-1">{plan.pt}</td>
-                        <td className="border px-2 py-1">{plan.lp}</td>
-                        <td className="border px-2 py-1">{plan.pedido}</td>
-                        <td className="border px-2 py-1">{plan.cliente}</td>
-                        <td className="border px-2 py-1">{plan.cantidad}</td>
-                        <td className="border px-2 py-1">{liberado}</td>
-                        <td className="border px-2 py-1">{pendiente}</td>
-                        <td className="border px-2 py-1 text-center">
-                          <Button size="sm" onClick={() => abrirModalLiberar(plan)} disabled={pendiente <= 0}>
-                            Liberar
-                          </Button>
-                        </td>
-                        <td className="border px-2 py-1 text-center">
-                          <Button size="sm" variant="secondary" onClick={() => abrirModalHistorial(plan)}>
-                            Liberaciones
-                          </Button>
-                        </td>
-                      </tr>
-                    )
-                  })}
-                </tbody>
-              </table>
-            </div>
+            <>
+              {lotesOrdenados.map((lp) => {
+                const planesDelLote = gruposPorLp[lp]
+                return (
+                  <div key={lp} className="mb-6">
+                    <h2 className="text-lg font-semibold mb-2">Lote: {lp}</h2>
+                    <div className="overflow-x-auto">
+                      <table className="w-full border text-sm min-w-[1000px]">
+                        <thead className="bg-gray-100">
+                          <tr>
+                            <th className="border px-2 py-1">Fecha</th>
+                            <th className="border px-2 py-1">Producto</th>
+                            <th className="border px-2 py-1">Color</th>
+                            <th className="border px-2 py-1">LF</th>
+                            <th className="border px-2 py-1">PT</th>
+                            <th className="border px-2 py-1">LP</th>
+                            <th className="border px-2 py-1">Pedido</th>
+                            <th className="border px-2 py-1">Cliente</th>
+                            <th className="border px-2 py-1">Cantidad</th>
+                            <th className="border px-2 py-1">Liberado</th>
+                            <th className="border px-2 py-1">Pendiente</th>
+                            <th className="border px-2 py-1">Acciones</th>
+                            <th className="border px-2 py-1">Historial</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {planesDelLote.map((plan) => {
+                            const liberado = calcularLiberado(plan.id)
+                            const pendiente = calcularPendiente(plan)
+                            return (
+                              <tr key={plan.id}>
+                                <td className="border px-2 py-1">{new Date(plan.fecha).toLocaleDateString()}</td>
+                                <td className="border px-2 py-1">{plan.producto}</td>
+                                <td className="border px-2 py-1">{plan.color}</td>
+                                <td className="border px-2 py-1">{plan.lf}</td>
+                                <td className="border px-2 py-1">{plan.pt}</td>
+                                <td className="border px-2 py-1">{plan.lp}</td>
+                                <td className="border px-2 py-1">{plan.pedido}</td>
+                                <td className="border px-2 py-1">{plan.cliente}</td>
+                                <td className="border px-2 py-1">{plan.cantidad}</td>
+                                <td className="border px-2 py-1">{liberado}</td>
+                                <td className="border px-2 py-1">{pendiente}</td>
+                                <td className="border px-2 py-1 text-center">
+                                  <Button size="sm" onClick={() => abrirModalLiberar(plan)} disabled={pendiente <= 0}>
+                                    Liberar
+                                  </Button>
+                                </td>
+                                <td className="border px-2 py-1 text-center">
+                                  <Button size="sm" variant="secondary" onClick={() => abrirModalHistorial(plan)}>
+                                    Liberaciones
+                                  </Button>
+                                </td>
+                              </tr>
+                            )
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )
+              })}
+            </>
           )}
         </CardContent>
       </Card>
