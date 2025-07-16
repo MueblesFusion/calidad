@@ -14,7 +14,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { useToast } from "@/hooks/use-toast"
 import { createClient } from "@supabase/supabase-js"
 import { Loader2 } from "lucide-react"
-import * as XLSX from "xlsx-style"
+import * as XLSX from "xlsx"
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -147,7 +147,7 @@ export default function PlanesPage() {
 
       toast({
         title: "Liberación registrada",
-        description: `Se liberaron ${cantidadLiberar} piezas`,
+        description: Se liberaron ${cantidadLiberar} piezas,
       })
       setModalLiberarOpen(false)
       await fetchData()
@@ -164,7 +164,7 @@ export default function PlanesPage() {
   const planesFiltrados = planes.filter((plan) => {
     const filtro = filtroTexto.trim().toLowerCase()
     if (!filtro) return true
-    const textoPlan = `${plan.cliente} ${plan.pedido} ${plan.producto} ${plan.area} ${plan.color} ${plan.lf} ${plan.pt} ${plan.lp}`.toLowerCase()
+    const textoPlan = ${plan.cliente} ${plan.pedido} ${plan.producto} ${plan.area} ${plan.color} ${plan.lf} ${plan.pt} ${plan.lp}.toLowerCase()
     return textoPlan.includes(filtro)
   })
 
