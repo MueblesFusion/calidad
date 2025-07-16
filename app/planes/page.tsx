@@ -98,10 +98,8 @@ export default function PlanesPage() {
 
   function calcularLiberado(planId: string): number {
     const libs = liberaciones[planId] || []
-    // Sumamos solo las liberaciones no revertidas
-    return libs
-      .filter((l) => !l.revertida)
-      .reduce((sum, l) => sum + l.cantidad, 0)
+    // Solo sumamos las cantidades de liberaciones NO revertidas
+    return libs.reduce((sum, l) => (l.revertida ? sum : sum + l.cantidad), 0)
   }
 
   function calcularPendiente(plan: PlanTrabajo): number {
@@ -399,11 +397,11 @@ export default function PlanesPage() {
                         <td className="border px-2 py-1 text-center">
                           {!lib.revertida && (
                             <Button
+                              type="button"
                               size="sm"
                               variant="destructive"
                               onClick={() => handleRevertirLiberacion(lib.id)}
                               className="whitespace-nowrap"
-                              type="button"
                             >
                               Revertir
                             </Button>
