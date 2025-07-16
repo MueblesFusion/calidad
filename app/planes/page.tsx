@@ -378,5 +378,3 @@ export default function PlanesPage() {
     </div>
   )
 }
-
-Esta bien el código? Me lo regresas por favor 
