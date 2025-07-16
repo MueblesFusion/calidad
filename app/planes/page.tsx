@@ -66,17 +66,15 @@ export default function PlanesPage() {
   async function fetchData() {
     setLoading(true)
     try {
-      const { data: planesData, error: planesError } = await supabase
+      const { data: planesData } = await supabase
         .from("planes_trabajo")
         .select("*")
         .order("fecha", { ascending: false })
-      if (planesError) throw planesError
 
-      const { data: liberacionesData, error: liberacionesError } = await supabase
+      const { data: liberacionesData } = await supabase
         .from("liberaciones")
         .select("id, plan_id, cantidad, fecha, usuario, revertida")
         .order("fecha", { ascending: false })
-      if (liberacionesError) throw liberacionesError
 
       setPlanes(planesData || [])
 
@@ -98,12 +96,10 @@ export default function PlanesPage() {
     }
   }
 
-  // Suma solo liberaciones NO revertidas
+  // Aquí está el cambio principal: sumamos todas las cantidades (positivas y negativas)
   function calcularLiberado(planId: string): number {
     const libs = liberaciones[planId] || []
-    return libs
-      .filter((l) => !l.revertida)
-      .reduce((sum, l) => sum + l.cantidad, 0)
+    return libs.reduce((sum, l) => sum + l.cantidad, 0)
   }
 
   function calcularPendiente(plan: PlanTrabajo): number {
@@ -168,28 +164,7 @@ export default function PlanesPage() {
     }
   }
 
-  async function handleRevertirLiberacion(liberacionId: string) {
-    try {
-      const { error } = await supabase
-        .from("liberaciones")
-        .update({ revertida: true })
-        .eq("id", liberacionId)
-      if (error) throw error
-
-      toast({
-        title: "Liberación revertida",
-        description: "Se ha marcado la liberación como revertida",
-      })
-      await fetchData()
-    } catch (error) {
-      console.error(error)
-      toast({
-        title: "Error",
-        description: "No se pudo revertir la liberación",
-        variant: "destructive",
-      })
-    }
-  }
+  // Aquí podrías agregar una función para registrar la reversión (no incluida por ahora)
 
   const planesFiltrados = planes.filter((plan) => {
     const filtro = filtroTexto.trim().toLowerCase()
@@ -211,7 +186,6 @@ export default function PlanesPage() {
           Cliente: plan.cliente,
           Cantidad: lib.cantidad,
           Usuario: lib.usuario,
-          Revertida: lib.revertida ? "Sí" : "No",
         })
       })
     })
@@ -375,38 +349,26 @@ export default function PlanesPage() {
 
         {/* Modal Historial */}
         <Dialog open={modalHistorialOpen} onOpenChange={setModalHistorialOpen}>
-          <DialogContent className="max-w-lg w-full max-h-[80vh] overflow-auto p-4 sm:max-w-full sm:mx-2">
+          <DialogContent className="max-w-lg">
             <DialogHeader>
               <DialogTitle>Historial de Liberaciones</DialogTitle>
             </DialogHeader>
-            <div className="mt-4 space-y-2 overflow-x-auto">
+            <div className="mt-4 space-y-2">
               {selectedPlan && liberaciones[selectedPlan.id]?.length ? (
-                <table className="w-full text-sm border min-w-[600px] sm:min-w-full">
+                <table className="w-full text-sm border">
                   <thead>
                     <tr className="bg-gray-200">
                       <th className="border px-2 py-1">Cantidad</th>
                       <th className="border px-2 py-1">Usuario</th>
                       <th className="border px-2 py-1">Fecha</th>
-                      <th className="border px-2 py-1">Acción</th>
                     </tr>
                   </thead>
                   <tbody>
                     {liberaciones[selectedPlan.id].map((lib) => (
-                      <tr key={lib.id} className={lib.revertida ? "bg-red-100 text-red-700" : ""}>
+                      <tr key={lib.id}>
                         <td className="border px-2 py-1 text-center">{lib.cantidad}</td>
                         <td className="border px-2 py-1 text-center">{lib.usuario}</td>
                         <td className="border px-2 py-1 text-center">{new Date(lib.fecha).toLocaleString()}</td>
-                        <td className="border px-2 py-1 text-center">
-                          {!lib.revertida && (
-                            <button
-                              type="button"
-                              onClick={() => handleRevertirLiberacion(lib.id)}
-                              className="inline-block px-2 py-1 text-sm font-medium text-white bg-red-600 rounded hover:bg-red-700"
-                            >
-                              Revertir
-                            </button>
-                          )}
-                        </td>
                       </tr>
                     ))}
                   </tbody>
