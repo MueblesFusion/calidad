@@ -14,6 +14,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { useToast } from "@/hooks/use-toast"
 import { createClient } from "@supabase/supabase-js"
 import { Loader2 } from "lucide-react"
+import * as XLSX from "xlsx"
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -50,40 +51,34 @@ export default function PlanesPage() {
   const [loading, setLoading] = useState(true)
 
   const [modalLiberarOpen, setModalLiberarOpen] = useState(false)
+  const [modalHistorialOpen, setModalHistorialOpen] = useState(false)
   const [selectedPlan, setSelectedPlan] = useState<PlanTrabajo | null>(null)
 
-  // Modal para historial liberaciones
-  const [modalHistorialOpen, setModalHistorialOpen] = useState(false)
-  const [planHistorial, setPlanHistorial] = useState<PlanTrabajo | null>(null)
-
-  // Inputs liberar
   const [cantidadLiberar, setCantidadLiberar] = useState<number>(0)
   const [liberadoPor, setLiberadoPor] = useState("")
-
-  // Filtro búsqueda
   const [filtroTexto, setFiltroTexto] = useState("")
+
+  useEffect(() => {
+    fetchData()
+  }, [])
 
   async function fetchData() {
     setLoading(true)
     try {
-      const { data: planesData, error: errorPlanes } = await supabase
+      const { data: planesData } = await supabase
         .from("planes_trabajo")
         .select("*")
         .order("fecha", { ascending: false })
 
-      if (errorPlanes) throw errorPlanes
-
-      const { data: liberacionesData, error: errorLiberaciones } = await supabase
+      const { data: liberacionesData } = await supabase
         .from("liberaciones")
         .select("id, plan_id, cantidad, fecha, usuario")
         .order("fecha", { ascending: false })
 
-      if (errorLiberaciones) throw errorLiberaciones
-
       setPlanes(planesData || [])
 
       const grouped: Record<string, Liberacion[]> = {}
-      (liberacionesData || []).forEach((lib) => {
+      ;(liberacionesData || []).forEach((lib) => {
         if (!grouped[lib.plan_id]) grouped[lib.plan_id] = []
         grouped[lib.plan_id].push(lib)
       })
@@ -99,10 +94,6 @@ export default function PlanesPage() {
       setLoading(false)
     }
   }
-
-  useEffect(() => {
-    fetchData()
-  }, [])
 
   function calcularLiberado(planId: string): number {
     const libs = liberaciones[planId] || []
@@ -121,31 +112,20 @@ export default function PlanesPage() {
   }
 
   function abrirModalHistorial(plan: PlanTrabajo) {
-    setPlanHistorial(plan)
+    setSelectedPlan(plan)
     setModalHistorialOpen(true)
   }
 
   async function handleLiberar() {
     if (!selectedPlan) return
-
-    if (cantidadLiberar <= 0) {
+    if (cantidadLiberar <= 0 || cantidadLiberar > calcularPendiente(selectedPlan)) {
       toast({
         title: "Cantidad inválida",
-        description: "La cantidad a liberar debe ser mayor a 0",
+        description: "Revisa la cantidad a liberar",
         variant: "destructive",
       })
       return
     }
-
-    if (cantidadLiberar > calcularPendiente(selectedPlan)) {
-      toast({
-        title: "Cantidad excedida",
-        description: "No puedes liberar más piezas de las pendientes",
-        variant: "destructive",
-      })
-      return
-    }
-
     if (liberadoPor.trim().length === 0) {
       toast({
         title: "Falta nombre",
@@ -154,7 +134,6 @@ export default function PlanesPage() {
       })
       return
     }
-
     try {
       const { error } = await supabase.from("liberaciones").insert([
         {
@@ -164,7 +143,6 @@ export default function PlanesPage() {
           fecha: new Date().toISOString(),
         },
       ])
-
       if (error) throw error
 
       toast({
@@ -172,7 +150,7 @@ export default function PlanesPage() {
         description: `Se liberaron ${cantidadLiberar} piezas`,
       })
       setModalLiberarOpen(false)
-      await fetchData() // actualizar datos
+      await fetchData()
     } catch (error) {
       console.error(error)
       toast({
@@ -190,9 +168,40 @@ export default function PlanesPage() {
     return textoPlan.includes(filtro)
   })
 
+  function exportarLiberacionesAExcel() {
+    const data: any[] = []
+
+    planesFiltrados.forEach((plan) => {
+      const historial = liberaciones[plan.id] || []
+      historial.forEach((lib) => {
+        data.push({
+          Fecha: new Date(lib.fecha).toLocaleString(),
+          Área: plan.area,
+          Producto: plan.producto,
+          Cliente: plan.cliente,
+          Cantidad: lib.cantidad,
+          Usuario: lib.usuario,
+        })
+      })
+    })
+
+    if (data.length === 0) {
+      toast({
+        title: "Sin datos",
+        description: "No hay liberaciones para exportar con el filtro aplicado",
+        variant: "destructive",
+      })
+      return
+    }
+
+    const worksheet = XLSX.utils.json_to_sheet(data)
+    const workbook = XLSX.utils.book_new()
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Liberaciones")
+    XLSX.writeFile(workbook, "liberaciones.xlsx")
+  }
+
   function renderTabla(area: "SILLAS" | "SALAS") {
     const planesArea = planesFiltrados.filter((p) => p.area === area)
-
     return (
       <Card key={area}>
         <CardHeader className="flex justify-between items-center">
@@ -203,7 +212,7 @@ export default function PlanesPage() {
             <p>No hay planes registrados para {area}.</p>
           ) : (
             <div className="overflow-x-auto">
-              <table className="w-full border border-gray-300 text-sm min-w-[900px]">
+              <table className="w-full border text-sm min-w-[1000px]">
                 <thead className="bg-gray-100">
                   <tr>
                     <th className="border px-2 py-1">Fecha</th>
@@ -218,6 +227,7 @@ export default function PlanesPage() {
                     <th className="border px-2 py-1">Liberado</th>
                     <th className="border px-2 py-1">Pendiente</th>
                     <th className="border px-2 py-1">Acciones</th>
+                    <th className="border px-2 py-1">Historial</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -237,19 +247,13 @@ export default function PlanesPage() {
                         <td className="border px-2 py-1">{plan.cantidad}</td>
                         <td className="border px-2 py-1">{liberado}</td>
                         <td className="border px-2 py-1">{pendiente}</td>
-                        <td className="border px-2 py-1 text-center space-x-2">
-                          <Button
-                            size="sm"
-                            onClick={() => abrirModalLiberar(plan)}
-                            disabled={pendiente <= 0}
-                          >
+                        <td className="border px-2 py-1 text-center">
+                          <Button size="sm" onClick={() => abrirModalLiberar(plan)} disabled={pendiente <= 0}>
                             Liberar
                           </Button>
-                          <Button
-                            size="sm"
-                            variant="secondary"
-                            onClick={() => abrirModalHistorial(plan)}
-                          >
+                        </td>
+                        <td className="border px-2 py-1 text-center">
+                          <Button size="sm" variant="secondary" onClick={() => abrirModalHistorial(plan)}>
                             Liberaciones
                           </Button>
                         </td>
@@ -278,6 +282,9 @@ export default function PlanesPage() {
             onChange={(e) => setFiltroTexto(e.target.value)}
             className="mb-2 md:mb-0"
           />
+          <Button onClick={exportarLiberacionesAExcel} className="bg-green-600 hover:bg-green-700 text-white">
+            Exportar Excel
+          </Button>
         </div>
 
         {loading ? (
@@ -296,13 +303,6 @@ export default function PlanesPage() {
           <DialogContent className="max-w-md">
             <DialogHeader>
               <DialogTitle>Liberar Piezas</DialogTitle>
-              <button
-                aria-label="Cerrar"
-                className="absolute top-3 right-3"
-                onClick={() => setModalLiberarOpen(false)}
-              >
-                ✕
-              </button>
             </DialogHeader>
             <form
               onSubmit={(e) => {
@@ -342,46 +342,35 @@ export default function PlanesPage() {
           </DialogContent>
         </Dialog>
 
-        {/* Modal Historial Liberaciones */}
+        {/* Modal Historial */}
         <Dialog open={modalHistorialOpen} onOpenChange={setModalHistorialOpen}>
           <DialogContent className="max-w-lg">
             <DialogHeader>
-              <DialogTitle>Historial</DialogTitle>
-              <button
-                aria-label="Cerrar"
-                className="absolute top-3 right-3"
-                onClick={() => setModalHistorialOpen(false)}
-              >
-                ✕
-              </button>
+              <DialogTitle>Historial de Liberaciones</DialogTitle>
             </DialogHeader>
-            <div className="overflow-x-auto max-h-96">
-              <table className="w-full text-sm border border-gray-300">
-                <thead className="bg-gray-100">
-                  <tr>
-                    <th className="border px-2 py-1">Cantidad</th>
-                    <th className="border px-2 py-1">Usuario</th>
-                    <th className="border px-2 py-1">Fecha</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {planHistorial && liberaciones[planHistorial.id]?.length ? (
-                    liberaciones[planHistorial.id].map((lib) => (
-                      <tr key={lib.id} className="text-green-600 font-semibold">
+            <div className="mt-4 space-y-2">
+              {selectedPlan && liberaciones[selectedPlan.id]?.length ? (
+                <table className="w-full text-sm border">
+                  <thead>
+                    <tr className="bg-gray-200">
+                      <th className="border px-2 py-1">Cantidad</th>
+                      <th className="border px-2 py-1">Usuario</th>
+                      <th className="border px-2 py-1">Fecha</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {liberaciones[selectedPlan.id].map((lib) => (
+                      <tr key={lib.id}>
                         <td className="border px-2 py-1 text-center">{lib.cantidad}</td>
                         <td className="border px-2 py-1 text-center">{lib.usuario}</td>
                         <td className="border px-2 py-1 text-center">{new Date(lib.fecha).toLocaleString()}</td>
                       </tr>
-                    ))
-                  ) : (
-                    <tr>
-                      <td colSpan={3} className="text-center py-4">
-                        No hay liberaciones registradas.
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
+                    ))}
+                  </tbody>
+                </table>
+              ) : (
+                <p className="text-muted-foreground text-sm">No hay liberaciones registradas para este plan.</p>
+              )}
             </div>
           </DialogContent>
         </Dialog>
