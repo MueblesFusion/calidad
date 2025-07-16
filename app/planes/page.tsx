@@ -73,7 +73,7 @@ export default function PlanesPage() {
 
       const { data: liberacionesData } = await supabase
         .from("liberaciones")
-        .select("*")
+        .select("id, plan_id, cantidad, fecha, usuario, revertida")
         .order("fecha", { ascending: false })
 
       setPlanes(planesData || [])
@@ -98,6 +98,7 @@ export default function PlanesPage() {
 
   function calcularLiberado(planId: string): number {
     const libs = liberaciones[planId] || []
+    // Sumamos solo las liberaciones no revertidas
     return libs
       .filter((l) => !l.revertida)
       .reduce((sum, l) => sum + l.cantidad, 0)
@@ -118,7 +119,8 @@ export default function PlanesPage() {
     setSelectedPlan(plan)
     setModalHistorialOpen(true)
   }
-    async function handleLiberar() {
+
+  async function handleLiberar() {
     if (!selectedPlan) return
     if (cantidadLiberar <= 0 || cantidadLiberar > calcularPendiente(selectedPlan)) {
       toast({
@@ -226,7 +228,8 @@ export default function PlanesPage() {
     XLSX.utils.book_append_sheet(workbook, worksheet, "Liberaciones")
     XLSX.writeFile(workbook, "liberaciones.xlsx")
   }
-    function renderTabla(area: "SILLAS" | "SALAS") {
+
+  function renderTabla(area: "SILLAS" | "SALAS") {
     const planesArea = planesFiltrados.filter((p) => p.area === area)
     return (
       <Card key={area}>
@@ -367,7 +370,8 @@ export default function PlanesPage() {
             </form>
           </DialogContent>
         </Dialog>
-                {/* Modal Historial */}
+
+        {/* Modal Historial */}
         <Dialog open={modalHistorialOpen} onOpenChange={setModalHistorialOpen}>
           <DialogContent className="max-w-lg w-full max-h-[80vh] overflow-auto p-4 sm:max-w-full sm:mx-2">
             <DialogHeader>
@@ -399,6 +403,7 @@ export default function PlanesPage() {
                               variant="destructive"
                               onClick={() => handleRevertirLiberacion(lib.id)}
                               className="whitespace-nowrap"
+                              type="button"
                             >
                               Revertir
                             </Button>
