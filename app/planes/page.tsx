@@ -1,5 +1,3 @@
-Mira hasta aquí todo funciona correctamente:
-
 "use client"
 
 import React, { useEffect, useState } from "react"
@@ -380,5 +378,3 @@ export default function PlanesPage() {
     </div>
   )
 }
-
-Por favor memoriza este código, cuando te pida implementar algo recuerda acoplarte a este código este es el funcional 
