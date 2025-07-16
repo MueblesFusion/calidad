@@ -96,11 +96,10 @@ export default function PlanesPage() {
     }
   }
 
-  // Suma todas las liberaciones, tomando en cuenta las revertidas (que deberían sumar 0 porque cantidad no cambia, solo revertida)
+  // Aquí está el cambio principal: sumamos todas las cantidades (positivas y negativas)
   function calcularLiberado(planId: string): number {
     const libs = liberaciones[planId] || []
-    // Solo sumamos las liberaciones no revertidas
-    return libs.reduce((sum, l) => (l.revertida ? sum : sum + l.cantidad), 0)
+    return libs.reduce((sum, l) => sum + l.cantidad, 0)
   }
 
   function calcularPendiente(plan: PlanTrabajo): number {
@@ -171,15 +170,12 @@ export default function PlanesPage() {
         .from("liberaciones")
         .update({ revertida: true })
         .eq("id", liberacionId)
-
       if (error) throw error
 
       toast({
         title: "Liberación revertida",
-        description: "La liberación fue marcada como revertida",
+        description: "Se ha marcado la liberación como revertida",
       })
-
-      // Refrescar datos
       await fetchData()
     } catch (error) {
       console.error(error)
@@ -375,13 +371,13 @@ export default function PlanesPage() {
 
         {/* Modal Historial */}
         <Dialog open={modalHistorialOpen} onOpenChange={setModalHistorialOpen}>
-          <DialogContent className="max-w-lg">
+          <DialogContent className="max-w-lg w-full max-h-[80vh] overflow-auto p-4 sm:max-w-full sm:mx-2">
             <DialogHeader>
               <DialogTitle>Historial de Liberaciones</DialogTitle>
             </DialogHeader>
-            <div className="mt-4 space-y-2">
+            <div className="mt-4 space-y-2 overflow-x-auto">
               {selectedPlan && liberaciones[selectedPlan.id]?.length ? (
-                <table className="w-full text-sm border">
+                <table className="w-full text-sm border min-w-[600px] sm:min-w-full">
                   <thead>
                     <tr className="bg-gray-200">
                       <th className="border px-2 py-1">Cantidad</th>
@@ -404,6 +400,7 @@ export default function PlanesPage() {
                               size="xs"
                               variant="destructive"
                               onClick={() => handleRevertirLiberacion(lib.id)}
+                              className="whitespace-nowrap"
                             >
                               Revertir
                             </Button>
