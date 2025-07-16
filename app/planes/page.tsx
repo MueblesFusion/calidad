@@ -14,7 +14,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { useToast } from "@/hooks/use-toast"
 import { createClient } from "@supabase/supabase-js"
 import { Loader2 } from "lucide-react"
-import XLSX from "xlsx-style" // Cambio aquí para estilos
+import XLSX from "xlsx-style" // Import para xlsx-style
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -195,9 +195,9 @@ export default function PlanesPage() {
     }
 
     // Crear worksheet sin encabezados para escribirlos manualmente y aplicar estilos
-    const worksheet = XLSX.utils.json_to_sheet(data, { origin: 1 }) // comienza en fila 2 (índice 1)
+    const worksheet = XLSX.utils.json_to_sheet(data, { origin: 1 }) // empieza en fila 2 (índice 1)
 
-    // Definir encabezados manualmente en la fila 1 (índice 0)
+    // Definir encabezados manualmente en fila 1 (índice 0)
     const headers = ["Fecha", "Área", "Producto", "Cliente", "Cantidad", "Usuario"]
     headers.forEach((header, colIdx) => {
       const cellRef = XLSX.utils.encode_cell({ c: colIdx, r: 0 })
