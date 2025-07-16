@@ -201,7 +201,7 @@ export default function PlanesPage() {
       historial.forEach((lib) => {
         data.push({
           Fecha: new Date(lib.fecha).toLocaleString(),
-          Ãrea: plan.area,
+          Area: plan.area,
           Producto: plan.producto,
           Cliente: plan.cliente,
           Cantidad: lib.cantidad,
