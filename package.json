@@ -1,5 +1,3 @@
-Pero agrégale tu el código de eso a mi código, respetando mi código y no dañando nada. 
-
 "use client"
 
 import React, { useEffect, useState } from "react"
@@ -380,5 +378,3 @@ export default function PlanesPage() {
     </div>
   )
 }
-
-Y regrésame lo en diálogo solo para copiarlo y pegar 
