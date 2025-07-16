@@ -42,7 +42,8 @@ type Liberacion = {
   cantidad: number
   fecha: string
   usuario: string
-  revertida?: boolean
+  revertida: boolean
+  reversion_de: string | null
 }
 
 export default function PlanesPage() {
@@ -53,10 +54,14 @@ export default function PlanesPage() {
 
   const [modalLiberarOpen, setModalLiberarOpen] = useState(false)
   const [modalHistorialOpen, setModalHistorialOpen] = useState(false)
+  const [modalRevertirOpen, setModalRevertirOpen] = useState(false)
   const [selectedPlan, setSelectedPlan] = useState<PlanTrabajo | null>(null)
+  const [selectedLiberacion, setSelectedLiberacion] = useState<Liberacion | null>(null)
 
   const [cantidadLiberar, setCantidadLiberar] = useState<number>(0)
+  const [cantidadRevertir, setCantidadRevertir] = useState<number>(0)
   const [liberadoPor, setLiberadoPor] = useState("")
+  const [revertidoPor, setRevertidoPor] = useState("")
   const [filtroTexto, setFiltroTexto] = useState("")
 
   useEffect(() => {
@@ -73,7 +78,7 @@ export default function PlanesPage() {
 
       const { data: liberacionesData } = await supabase
         .from("liberaciones")
-        .select("id, plan_id, cantidad, fecha, usuario, revertida")
+        .select("id, plan_id, cantidad, fecha, usuario, revertida, reversion_de")
         .order("fecha", { ascending: false })
 
       setPlanes(planesData || [])
@@ -98,7 +103,12 @@ export default function PlanesPage() {
 
   function calcularLiberado(planId: string): number {
     const libs = liberaciones[planId] || []
-    return libs.reduce((sum, l) => sum + l.cantidad, 0)
+    // Sumamos solo las liberaciones NO revertidas, menos las reversión (que son negativas)
+    return libs.reduce((sum, l) => {
+      if (l.revertida) return sum // reversión no cuenta como liberado
+      // Si es liberación normal, sumamos cantidad
+      return sum + l.cantidad
+    }, 0)
   }
 
   function calcularPendiente(plan: PlanTrabajo): number {
@@ -115,6 +125,13 @@ export default function PlanesPage() {
   function abrirModalHistorial(plan: PlanTrabajo) {
     setSelectedPlan(plan)
     setModalHistorialOpen(true)
+  }
+
+  function abrirModalRevertir(lib: Liberacion) {
+    setSelectedLiberacion(lib)
+    setCantidadRevertir(0)
+    setRevertidoPor("")
+    setModalRevertirOpen(true)
   }
 
   async function handleLiberar() {
@@ -142,6 +159,8 @@ export default function PlanesPage() {
           cantidad: cantidadLiberar,
           usuario: liberadoPor.trim(),
           fecha: new Date().toISOString(),
+          revertida: false,
+          reversion_de: null,
         },
       ])
       if (error) throw error
@@ -162,38 +181,49 @@ export default function PlanesPage() {
     }
   }
 
-  async function handleRevertirLiberacion(liberacion: Liberacion) {
-    const confirmar = confirm("¿Estás seguro de revertir esta liberación?")
-    if (!confirmar || !selectedPlan) return
-
+  async function handleRevertir() {
+    if (!selectedLiberacion || !selectedPlan) return
+    if (cantidadRevertir <= 0 || cantidadRevertir > selectedLiberacion.cantidad) {
+      toast({
+        title: "Cantidad inválida",
+        description: "Revisa la cantidad a revertir",
+        variant: "destructive",
+      })
+      return
+    }
+    if (revertidoPor.trim().length === 0) {
+      toast({
+        title: "Falta nombre",
+        description: "Debes ingresar quién revierte",
+        variant: "destructive",
+      })
+      return
+    }
     try {
-      const { error: insertError } = await supabase.from("liberaciones").insert([
+      // Insertamos reversión como liberación con cantidad negativa
+      const { error } = await supabase.from("liberaciones").insert([
         {
           plan_id: selectedPlan.id,
-          cantidad: -liberacion.cantidad,
-          usuario: `Reversión de ${liberacion.usuario}`,
+          cantidad: -cantidadRevertir,
+          usuario: revertidoPor.trim(),
           fecha: new Date().toISOString(),
+          revertida: true,
+          reversion_de: selectedLiberacion.id,
         },
       ])
-      if (insertError) throw insertError
-
-      const { error: updateError } = await supabase
-        .from("liberaciones")
-        .update({ revertida: true })
-        .eq("id", liberacion.id)
-      if (updateError) throw updateError
+      if (error) throw error
 
       toast({
-        title: "Liberación revertida",
-        description: `Se revirtió la liberación de ${liberacion.cantidad} piezas.`,
+        title: "Reversión registrada",
+        description: `Se revirtieron ${cantidadRevertir} piezas`,
       })
-
+      setModalRevertirOpen(false)
       await fetchData()
     } catch (error) {
       console.error(error)
       toast({
-        title: "Error al revertir",
-        description: "No se pudo revertir la liberación",
+        title: "Error",
+        description: "No se pudo registrar la reversión",
         variant: "destructive",
       })
     }
@@ -219,6 +249,7 @@ export default function PlanesPage() {
           Cliente: plan.cliente,
           Cantidad: lib.cantidad,
           Usuario: lib.usuario,
+          Revertida: lib.revertida ? "Sí" : "No",
         })
       })
     })
@@ -336,53 +367,6 @@ export default function PlanesPage() {
           </>
         )}
 
-        {/* Modal Historial */}
-        <Dialog open={modalHistorialOpen} onOpenChange={setModalHistorialOpen}>
-          <DialogContent className="max-w-lg">
-            <DialogHeader>
-              <DialogTitle>Historial de Liberaciones</DialogTitle>
-            </DialogHeader>
-            <div className="mt-4 space-y-2">
-              {selectedPlan && liberaciones[selectedPlan.id]?.length ? (
-                <table className="w-full text-sm border">
-                  <thead>
-                    <tr className="bg-gray-200">
-                      <th className="border px-2 py-1">Cantidad</th>
-                      <th className="border px-2 py-1">Usuario</th>
-                      <th className="border px-2 py-1">Fecha</th>
-                      <th className="border px-2 py-1">Acciones</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {liberaciones[selectedPlan.id].map((lib) => (
-                      <tr key={lib.id}>
-                        <td className="border px-2 py-1 text-center">{lib.cantidad}</td>
-                        <td className="border px-2 py-1 text-center">{lib.usuario}</td>
-                        <td className="border px-2 py-1 text-center">{new Date(lib.fecha).toLocaleString()}</td>
-                        <td className="border px-2 py-1 text-center">
-                          {lib.revertida ? (
-                            <span className="text-gray-400 text-xs italic">Revertida</span>
-                          ) : (
-                            <Button
-                              size="sm"
-                              variant="destructive"
-                              onClick={() => handleRevertirLiberacion(lib)}
-                            >
-                              Revertir
-                            </Button>
-                          )}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              ) : (
-                <p className="text-muted-foreground text-sm">No hay liberaciones registradas para este plan.</p>
-              )}
-            </div>
-          </DialogContent>
-        </Dialog>
-
         {/* Modal Liberar */}
         <Dialog open={modalLiberarOpen} onOpenChange={setModalLiberarOpen}>
           <DialogContent className="max-w-md">
@@ -422,6 +406,93 @@ export default function PlanesPage() {
                   Cancelar
                 </Button>
                 <Button type="submit">Guardar</Button>
+              </div>
+            </form>
+          </DialogContent>
+        </Dialog>
+
+        {/* Modal Historial */}
+        <Dialog open={modalHistorialOpen} onOpenChange={setModalHistorialOpen}>
+          <DialogContent className="max-w-lg">
+            <DialogHeader>
+              <DialogTitle>Historial de Liberaciones</DialogTitle>
+            </DialogHeader>
+            <div className="mt-4 space-y-2">
+              {selectedPlan && liberaciones[selectedPlan.id]?.length ? (
+                <>
+                  <table className="w-full text-sm border">
+                    <thead>
+                      <tr className="bg-gray-200">
+                        <th className="border px-2 py-1">Cantidad</th>
+                        <th className="border px-2 py-1">Usuario</th>
+                        <th className="border px-2 py-1">Fecha</th>
+                        <th className="border px-2 py-1">Acciones</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {liberaciones[selectedPlan.id].map((lib) => (
+                        <tr key={lib.id}>
+                          <td className="border px-2 py-1 text-center">{lib.cantidad}</td>
+                          <td className="border px-2 py-1 text-center">{lib.usuario}</td>
+                          <td className="border px-2 py-1 text-center">{new Date(lib.fecha).toLocaleString()}</td>
+                          <td className="border px-2 py-1 text-center">
+                            {!lib.revertida && lib.cantidad > 0 && (
+                              <Button size="xs" variant="destructive" onClick={() => abrirModalRevertir(lib)}>
+                                Revertir
+                              </Button>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </>
+              ) : (
+                <p className="text-muted-foreground text-sm">No hay liberaciones registradas para este plan.</p>
+              )}
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        {/* Modal Revertir */}
+        <Dialog open={modalRevertirOpen} onOpenChange={setModalRevertirOpen}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle>Revertir Liberación</DialogTitle>
+            </DialogHeader>
+            <form
+              onSubmit={(e) => {
+                e.preventDefault()
+                handleRevertir()
+              }}
+              className="space-y-4 p-2"
+            >
+              <div>
+                <Label>Cantidad a revertir</Label>
+                <Input
+                  type="number"
+                  min={1}
+                  max={selectedLiberacion ? selectedLiberacion.cantidad : undefined}
+                  value={cantidadRevertir}
+                  onChange={(e) => setCantidadRevertir(parseInt(e.target.value))}
+                  required
+                  autoFocus
+                />
+              </div>
+              <div>
+                <Label>Quién revierte</Label>
+                <Input
+                  type="text"
+                  value={revertidoPor}
+                  onChange={(e) => setRevertidoPor(e.target.value)}
+                  required
+                />
+              </div>
+              <div className="flex justify-end space-x-2">
+                <Button type="button" variant="secondary" onClick={() => setModalRevertirOpen(false)}>
+                  Cancelar
+                </Button>
+                <Button type="submit" variant="destructive">Revertir</Button>
               </div>
             </form>
           </DialogContent>
