@@ -58,6 +58,10 @@ export default function PlanesPage() {
   const [liberadoPor, setLiberadoPor] = useState("")
   const [filtroTexto, setFiltroTexto] = useState("")
 
+  // Nuevos estados para filtro fechas
+  const [fechaInicio, setFechaInicio] = useState<string>("")
+  const [fechaFin, setFechaFin] = useState<string>("")
+
   useEffect(() => {
     fetchData()
   }, [])
@@ -168,11 +172,21 @@ export default function PlanesPage() {
     return textoPlan.includes(filtro)
   })
 
+  // Filtro de liberaciones por fecha
+  function filtrarLiberacionesPorFecha(libs: Liberacion[]): Liberacion[] {
+    return libs.filter((lib) => {
+      const libDate = new Date(lib.fecha)
+      if (fechaInicio && libDate < new Date(fechaInicio)) return false
+      if (fechaFin && libDate > new Date(fechaFin + "T23:59:59")) return false
+      return true
+    })
+  }
+
   function exportarLiberacionesAExcel() {
     const data: any[] = []
 
     planesFiltrados.forEach((plan) => {
-      const historial = liberaciones[plan.id] || []
+      const historial = filtrarLiberacionesPorFecha(liberaciones[plan.id] || [])
       historial.forEach((lib) => {
         const liberado = calcularLiberado(plan.id)
         const pendiente = plan.cantidad - liberado
@@ -205,6 +219,32 @@ export default function PlanesPage() {
 
     const worksheet = XLSX.utils.json_to_sheet(data, { origin: 1 }) // Datos desde fila 2
 
+    // Construir título del rango de fechas
+    let titulo = "Liberaciones exportadas"
+    if (fechaInicio && fechaFin) {
+      titulo += ` del ${new Date(fechaInicio).toLocaleDateString()} al ${new Date(fechaFin).toLocaleDateString()}`
+    } else if (fechaInicio) {
+      titulo += ` desde ${new Date(fechaInicio).toLocaleDateString()}`
+    } else if (fechaFin) {
+      titulo += ` hasta ${new Date(fechaFin).toLocaleDateString()}`
+    }
+
+    // Título en A1 con estilo rojo sobre blanco, centrado y negrita
+    worksheet["A1"] = {
+      v: titulo,
+      t: "s",
+      s: {
+        font: { color: { rgb: "FF0000" }, bold: true, sz: 14 },
+        alignment: { horizontal: "center", vertical: "center" },
+        fill: { fgColor: { rgb: "FFFFFF" } },
+      },
+    }
+
+    // Fusionar A1 a M1 (13 columnas)
+    worksheet["!merges"] = [
+      { s: { r: 0, c: 0 }, e: { r: 0, c: 12 } },
+    ]
+
     const headers = [
       "Área",
       "Fecha de liberación",
@@ -221,8 +261,9 @@ export default function PlanesPage() {
       "Pendiente",
     ]
 
+    // Encabezados en fila 2 (r=1)
     headers.forEach((header, colIdx) => {
-      const cellRef = XLSX.utils.encode_cell({ c: colIdx, r: 0 })
+      const cellRef = XLSX.utils.encode_cell({ c: colIdx, r: 1 })
       worksheet[cellRef] = {
         v: header,
         t: "s",
@@ -240,9 +281,11 @@ export default function PlanesPage() {
       }
     })
 
-    const totalRows = data.length + 1
-    for (let row = 1; row < totalRows; row++) {
-      const fillColor = row % 2 === 0 ? "FFFFFF" : "F2F2F2"
+    const totalRows = data.length + 2 // fila 1 título + fila 2 headers + datos
+
+    // Estilo filas alternadas desde fila 3 (r=2)
+    for (let row = 2; row < totalRows; row++) {
+      const fillColor = (row % 2 === 0) ? "FFFFFF" : "F2F2F2"
       for (let col = 0; col < headers.length; col++) {
         const cellRef = XLSX.utils.encode_cell({ c: col, r: row })
         if (!worksheet[cellRef]) continue
@@ -281,7 +324,8 @@ export default function PlanesPage() {
       { wch: 10 },
     ]
 
-    worksheet["!autofilter"] = { ref: `A1:M${totalRows}` }
+    // Autofiltro abarca desde título (A1) hasta última fila y columna M
+    worksheet["!autofilter"] = { ref: `A2:M${totalRows}` }
 
     const workbook = XLSX.utils.book_new()
     XLSX.utils.book_append_sheet(workbook, worksheet, "Liberaciones")
@@ -308,6 +352,32 @@ export default function PlanesPage() {
           <CardTitle>{area}</CardTitle>
         </CardHeader>
         <CardContent>
+          {/* Controles filtro fechas y texto */}
+          <div className="mb-4 flex flex-col md:flex-row md:items-center md:space-x-4">
+            <div className="flex items-center space-x-2 mb-2 md:mb-0">
+              <Label htmlFor="fechaInicio" className="whitespace-nowrap">
+                Fecha Inicio:
+              </Label>
+              <Input
+                type="date"
+                id="fechaInicio"
+                value={fechaInicio}
+                onChange={(e) => setFechaInicio(e.target.value)}
+              />
+            </div>
+            <div className="flex items-center space-x-2 mb-2 md:mb-0">
+              <Label htmlFor="fechaFin" className="whitespace-nowrap">
+                Fecha Fin:
+              </Label>
+              <Input
+                type="date"
+                id="fechaFin"
+                value={fechaFin}
+                onChange={(e) => setFechaFin(e.target.value)}
+              />
+            </div>
+          </div>
+
           {planesArea.length === 0 ? (
             <p>No hay planes registrados para {area}.</p>
           ) : (
