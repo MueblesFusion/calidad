@@ -96,10 +96,10 @@ export default function PlanesPage() {
     }
   }
 
-  // Aquí está el cambio principal: sumamos todas las cantidades (positivas y negativas)
+  // Solo sumamos las cantidades de liberaciones NO revertidas
   function calcularLiberado(planId: string): number {
     const libs = liberaciones[planId] || []
-    return libs.reduce((sum, l) => sum + l.cantidad, 0)
+    return libs.reduce((sum, l) => sum + (l.revertida ? 0 : l.cantidad), 0)
   }
 
   function calcularPendiente(plan: PlanTrabajo): number {
@@ -164,8 +164,6 @@ export default function PlanesPage() {
     }
   }
 
-  // Aquí podrías agregar una función para registrar la reversión (no incluida por ahora)
-
   const planesFiltrados = planes.filter((plan) => {
     const filtro = filtroTexto.trim().toLowerCase()
     if (!filtro) return true
@@ -186,6 +184,7 @@ export default function PlanesPage() {
           Cliente: plan.cliente,
           Cantidad: lib.cantidad,
           Usuario: lib.usuario,
+          Revertida: lib.revertida ? "Sí" : "No",
         })
       })
     })
@@ -361,14 +360,16 @@ export default function PlanesPage() {
                       <th className="border px-2 py-1">Cantidad</th>
                       <th className="border px-2 py-1">Usuario</th>
                       <th className="border px-2 py-1">Fecha</th>
+                      <th className="border px-2 py-1">Revertida</th>
                     </tr>
                   </thead>
                   <tbody>
                     {liberaciones[selectedPlan.id].map((lib) => (
-                      <tr key={lib.id}>
+                      <tr key={lib.id} className={lib.revertida ? "bg-red-100 text-red-700" : ""}>
                         <td className="border px-2 py-1 text-center">{lib.cantidad}</td>
                         <td className="border px-2 py-1 text-center">{lib.usuario}</td>
                         <td className="border px-2 py-1 text-center">{new Date(lib.fecha).toLocaleString()}</td>
+                        <td className="border px-2 py-1 text-center">{lib.revertida ? "Sí" : "No"}</td>
                       </tr>
                     ))}
                   </tbody>
