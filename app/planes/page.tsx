@@ -23,7 +23,6 @@ const supabase = createClient(
 
 type PlanTrabajo = {
   id: string
-  fecha: string
   area: "SILLAS" | "SALAS" | string
   cantidad: number
   producto: string
@@ -33,6 +32,7 @@ type PlanTrabajo = {
   lp: string
   pedido: string
   cliente: string
+  fecha: string
   liberado: number
 }
 
@@ -40,8 +40,8 @@ type Liberacion = {
   id: string
   plan_id: string
   cantidad: number
-  usuario: string
   fecha: string
+  usuario: string
 }
 
 export default function PlanesPage() {
@@ -72,7 +72,7 @@ export default function PlanesPage() {
 
       const { data: liberacionesData, error: errorLiberaciones } = await supabase
         .from("liberaciones")
-        .select("*")
+        .select("id, plan_id, cantidad, fecha, usuario")
         .order("fecha", { ascending: false })
 
       if (errorLiberaciones) throw errorLiberaciones
@@ -99,36 +99,8 @@ export default function PlanesPage() {
 
   useEffect(() => {
     fetchData()
-
-    const planesSub = supabase
-      .channel("public:planes_trabajo")
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "planes_trabajo" },
-        () => {
-          fetchData()
-        }
-      )
-      .subscribe()
-
-    const liberacionesSub = supabase
-      .channel("public:liberaciones")
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "liberaciones" },
-        () => {
-          fetchData()
-        }
-      )
-      .subscribe()
-
-    return () => {
-      supabase.removeChannel(planesSub)
-      supabase.removeChannel(liberacionesSub)
-    }
   }, [])
 
-  // Calcular liberado y pendiente
   function calcularLiberado(planId: string): number {
     const libs = liberaciones[planId] || []
     return libs.reduce((sum, l) => sum + l.cantidad, 0)
@@ -192,6 +164,7 @@ export default function PlanesPage() {
         description: `Se liberaron ${cantidadLiberar} piezas`,
       })
       setModalLiberarOpen(false)
+      await fetchData() // recarga datos para actualizar UI
     } catch (error) {
       console.error(error)
       toast({
@@ -202,7 +175,6 @@ export default function PlanesPage() {
     }
   }
 
-  // Filtrar planes
   const planesFiltrados = planes.filter((plan) => {
     const filtro = filtroTexto.trim().toLowerCase()
     if (!filtro) return true
@@ -269,6 +241,7 @@ export default function PlanesPage() {
                           </td>
                         </tr>
 
+                        {/* Historial liberaciones */}
                         <tr>
                           <td colSpan={12} className="bg-gray-50 p-2 border">
                             <strong>Historial de Liberaciones:</strong>
@@ -283,7 +256,7 @@ export default function PlanesPage() {
                                 </thead>
                                 <tbody>
                                   {liberaciones[plan.id].map((lib) => (
-                                    <tr key={lib.id}>
+                                    <tr key={lib.id} className="text-green-600 font-semibold">
                                       <td className="border px-1 py-0.5 text-center">{lib.cantidad}</td>
                                       <td className="border px-1 py-0.5 text-center">{lib.usuario}</td>
                                       <td className="border px-1 py-0.5 text-center">{new Date(lib.fecha).toLocaleString()}</td>
@@ -308,38 +281,6 @@ export default function PlanesPage() {
     )
   }
 
-  function exportarLiberacionesAExcel() {
-    const data: any[] = []
-
-    planesFiltrados.forEach((plan) => {
-      const historial = liberaciones[plan.id] || []
-      historial.forEach((lib) => {
-        data.push({
-          Fecha: new Date(lib.fecha).toLocaleString(),
-          Área: plan.area,
-          Producto: plan.producto,
-          Cliente: plan.cliente,
-          Cantidad: lib.cantidad,
-          Usuario: lib.usuario,
-        })
-      })
-    })
-
-    if (data.length === 0) {
-      toast({
-        title: "Sin datos",
-        description: "No hay liberaciones para exportar con el filtro aplicado",
-        variant: "destructive",
-      })
-      return
-    }
-
-    const worksheet = XLSX.utils.json_to_sheet(data)
-    const workbook = XLSX.utils.book_new()
-    XLSX.utils.book_append_sheet(workbook, worksheet, "Liberaciones")
-    XLSX.writeFile(workbook, "liberaciones.xlsx")
-  }
-
   return (
     <div className="min-h-screen bg-gray-50 p-4">
       <div className="max-w-7xl mx-auto space-y-6">
@@ -353,9 +294,6 @@ export default function PlanesPage() {
             onChange={(e) => setFiltroTexto(e.target.value)}
             className="mb-2 md:mb-0"
           />
-          <Button onClick={exportarLiberacionesAExcel} variant="secondary" className="whitespace-nowrap">
-            Exportar Liberaciones
-          </Button>
         </div>
 
         {loading ? (
@@ -369,6 +307,7 @@ export default function PlanesPage() {
           </>
         )}
 
+        {/* Modal Liberar */}
         <Dialog open={modalLiberarOpen} onOpenChange={setModalLiberarOpen}>
           <DialogContent className="max-w-md">
             <DialogHeader>
@@ -401,7 +340,7 @@ export default function PlanesPage() {
                 />
               </div>
               <div>
-                <Label>Quien libera</Label>
+                <Label>Quién libera</Label>
                 <Input
                   type="text"
                   value={liberadoPor}
