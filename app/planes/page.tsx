@@ -14,7 +14,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { useToast } from "@/hooks/use-toast"
 import { createClient } from "@supabase/supabase-js"
 import { Loader2 } from "lucide-react"
-import * as XLSX from "xlsx-style"
+import XLSX from "xlsx-style" // Cambio aquí para estilos
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -194,9 +194,68 @@ export default function PlanesPage() {
       return
     }
 
-    const worksheet = XLSX.utils.json_to_sheet(data)
+    // Crear worksheet sin encabezados para escribirlos manualmente y aplicar estilos
+    const worksheet = XLSX.utils.json_to_sheet(data, { origin: 1 }) // comienza en fila 2 (índice 1)
+
+    // Definir encabezados manualmente en la fila 1 (índice 0)
+    const headers = ["Fecha", "Área", "Producto", "Cliente", "Cantidad", "Usuario"]
+    headers.forEach((header, colIdx) => {
+      const cellRef = XLSX.utils.encode_cell({ c: colIdx, r: 0 })
+      worksheet[cellRef] = {
+        v: header,
+        t: "s",
+        s: {
+          fill: { fgColor: { rgb: "404040" } },
+          font: { color: { rgb: "FFFFFF" }, bold: true },
+          alignment: { horizontal: "center", vertical: "center" },
+          border: {
+            top: { style: "thin", color: { rgb: "000000" } },
+            bottom: { style: "thin", color: { rgb: "000000" } },
+            left: { style: "thin", color: { rgb: "000000" } },
+            right: { style: "thin", color: { rgb: "000000" } },
+          },
+        },
+      }
+    })
+
+    // Estilos para filas alternadas y bordes
+    const totalRows = data.length + 1 // +1 por encabezado
+    for (let row = 1; row < totalRows; row++) {
+      const fillColor = row % 2 === 0 ? "FFFFFF" : "F2F2F2"
+      for (let col = 0; col < headers.length; col++) {
+        const cellRef = XLSX.utils.encode_cell({ c: col, r: row })
+        if (!worksheet[cellRef]) continue
+        worksheet[cellRef].s = {
+          fill: { fgColor: { rgb: fillColor } },
+          font: { color: { rgb: "000000" }, bold: false },
+          alignment: { horizontal: col === 4 ? "right" : "left", vertical: "center" }, // Cantidad a la derecha
+          border: {
+            top: { style: "thin", color: { rgb: "000000" } },
+            bottom: { style: "thin", color: { rgb: "000000" } },
+            left: { style: "thin", color: { rgb: "000000" } },
+            right: { style: "thin", color: { rgb: "000000" } },
+          },
+        }
+      }
+    }
+
+    // Anchos de columnas
+    worksheet["!cols"] = [
+      { wch: 20 }, // Fecha
+      { wch: 10 }, // Área
+      { wch: 25 }, // Producto
+      { wch: 25 }, // Cliente
+      { wch: 10 }, // Cantidad
+      { wch: 20 }, // Usuario
+    ]
+
+    // Autofiltro en el rango completo
+    worksheet["!autofilter"] = { ref: `A1:F${totalRows}` }
+
+    // Crear libro y agregar hoja
     const workbook = XLSX.utils.book_new()
     XLSX.utils.book_append_sheet(workbook, worksheet, "Liberaciones")
+
     XLSX.writeFile(workbook, "liberaciones.xlsx")
   }
 
