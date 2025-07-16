@@ -18,7 +18,7 @@ import {
   Pie,
   Cell,
 } from "recharts"
-import * as XLSX from "xlsx-style"
+import * as XLSX from "xlsx-js-style"
 import { getDefectReports, type DefectReport } from "@/lib/database"
 import { useToast } from "@/hooks/use-toast"
 
