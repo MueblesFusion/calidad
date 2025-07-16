@@ -2,18 +2,16 @@
 
 import React, { useEffect, useState } from "react"
 import {
-  Card,
-  CardHeader,
-  CardTitle,
-  CardContent,
-} from "@/components/ui/card"
+  Card, CardHeader, CardTitle, CardContent,
+  Dialog, DialogContent, DialogHeader, DialogTitle
+} from "@/components/ui"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { useToast } from "@/hooks/use-toast"
 import { createClient } from "@supabase/supabase-js"
 import { Loader2 } from "lucide-react"
+import * as XLSX from "xlsx"
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -40,8 +38,9 @@ type Liberacion = {
   cantidad: number
   fecha: string
   usuario: string
-  revertida?: boolean
+  revertida: boolean
   reversion_de_id?: string
+  cantidad_revertida?: number
 }
 
 export default function PlanesPage() {
@@ -52,14 +51,15 @@ export default function PlanesPage() {
 
   const [modalLiberarOpen, setModalLiberarOpen] = useState(false)
   const [modalHistorialOpen, setModalHistorialOpen] = useState(false)
+  const [modalRevertirOpen, setModalRevertirOpen] = useState(false)
+
   const [selectedPlan, setSelectedPlan] = useState<PlanTrabajo | null>(null)
+  const [selectedLiberacion, setSelectedLiberacion] = useState<Liberacion | null>(null)
 
   const [cantidadLiberar, setCantidadLiberar] = useState<number>(0)
-  const [liberadoPor, setLiberadoPor] = useState("")
-  const [filtroTexto, setFiltroTexto] = useState("")
-
-  const [reversionEnCurso, setReversionEnCurso] = useState<Liberacion | null>(null)
   const [cantidadRevertir, setCantidadRevertir] = useState<number>(0)
+  const [usuarioAccion, setUsuarioAccion] = useState("")
+  const [filtroTexto, setFiltroTexto] = useState("")
 
   useEffect(() => {
     fetchData()
@@ -68,24 +68,26 @@ export default function PlanesPage() {
   async function fetchData() {
     setLoading(true)
     try {
-      const { data: planesData } = await supabase.from("planes_trabajo").select("*").order("fecha", { ascending: false })
-      const { data: liberacionesData } = await supabase.from("liberaciones").select("*").order("fecha", { ascending: true })
+      const { data: planesData } = await supabase
+        .from("planes_trabajo")
+        .select("*")
+        .order("fecha", { ascending: false })
 
-      setPlanes(planesData || [])
+      const { data: liberacionesData } = await supabase
+        .from("liberaciones")
+        .select("*")
+        .order("fecha", { ascending: false })
 
       const grouped: Record<string, Liberacion[]> = {}
-      ;(liberacionesData || []).forEach((lib) => {
+      for (const lib of liberacionesData || []) {
         if (!grouped[lib.plan_id]) grouped[lib.plan_id] = []
         grouped[lib.plan_id].push(lib)
-      })
+      }
+
+      setPlanes(planesData || [])
       setLiberaciones(grouped)
     } catch (error) {
-      console.error(error)
-      toast({
-        title: "Error",
-        description: "No se pudieron cargar los datos",
-        variant: "destructive",
-      })
+      toast({ title: "Error", description: "No se pudieron cargar los datos", variant: "destructive" })
     } finally {
       setLoading(false)
     }
@@ -100,34 +102,18 @@ export default function PlanesPage() {
     return plan.cantidad - calcularLiberado(plan.id)
   }
 
-  function abrirModalLiberar(plan: PlanTrabajo) {
-    setSelectedPlan(plan)
-    setCantidadLiberar(0)
-    setLiberadoPor("")
-    setModalLiberarOpen(true)
-  }
-
-  function abrirModalHistorial(plan: PlanTrabajo) {
-    setSelectedPlan(plan)
-    setModalHistorialOpen(true)
+  function getCantidadRevertida(lib: Liberacion, todas: Liberacion[]) {
+    return todas
+      .filter((l) => l.reversion_de_id === lib.id)
+      .reduce((sum, l) => sum + (l.cantidad_revertida || 0), 0)
   }
 
   async function handleLiberar() {
-    if (!selectedPlan) return
-    if (cantidadLiberar <= 0 || cantidadLiberar > calcularPendiente(selectedPlan)) {
-      toast({
-        title: "Cantidad inválida",
-        description: "Revisa la cantidad a liberar",
-        variant: "destructive",
-      })
-      return
-    }
-    if (liberadoPor.trim().length === 0) {
-      toast({
-        title: "Falta nombre",
-        description: "Debes ingresar quién libera",
-        variant: "destructive",
-      })
+    if (!selectedPlan || cantidadLiberar <= 0 || !usuarioAccion.trim()) return
+
+    const pendiente = calcularPendiente(selectedPlan)
+    if (cantidadLiberar > pendiente) {
+      toast({ title: "Cantidad inválida", variant: "destructive" })
       return
     }
 
@@ -135,69 +121,50 @@ export default function PlanesPage() {
       {
         plan_id: selectedPlan.id,
         cantidad: cantidadLiberar,
-        usuario: liberadoPor.trim(),
+        usuario: usuarioAccion.trim(),
         fecha: new Date().toISOString(),
         revertida: false,
-      },
+        reversion_de_id: null,
+      }
     ])
 
-    if (error) {
-      console.error(error)
-      toast({ title: "Error", description: "No se pudo registrar la liberación", variant: "destructive" })
-    } else {
-      toast({ title: "Liberación registrada", description: `Se liberaron ${cantidadLiberar} piezas` })
+    if (!error) {
+      toast({ title: "Liberado", description: `Liberaste ${cantidadLiberar} piezas` })
       setModalLiberarOpen(false)
-      await fetchData()
+      fetchData()
     }
   }
 
-  function obtenerCantidadYaRevertida(id: string) {
-    const todas = Object.values(liberaciones).flat()
-    return todas
-      .filter((l) => l.reversion_de_id === id)
-      .reduce((acc, curr) => acc + Math.abs(curr.cantidad), 0)
-  }
-
-  async function handleRevertirParcial() {
-    if (!reversionEnCurso || cantidadRevertir <= 0 || cantidadRevertir > reversionEnCurso.cantidad) return
-
-    const cantidadYaRevertida = obtenerCantidadYaRevertida(reversionEnCurso.id)
-    const disponible = reversionEnCurso.cantidad - cantidadYaRevertida
-
-    if (cantidadRevertir > disponible) {
-      toast({ title: "Error", description: "Ya se ha revertido parte de esta liberación", variant: "destructive" })
-      return
-    }
+  async function handleRevertir() {
+    if (!selectedLiberacion || cantidadRevertir <= 0 || !usuarioAccion.trim()) return
 
     const { error } = await supabase.from("liberaciones").insert([
       {
-        plan_id: reversionEnCurso.plan_id,
+        plan_id: selectedLiberacion.plan_id,
         cantidad: -cantidadRevertir,
+        usuario: `Revertido de ${selectedLiberacion.usuario} (${usuarioAccion.trim()})`,
         fecha: new Date().toISOString(),
-        usuario: `Reversión de ${reversionEnCurso.usuario}`,
         revertida: true,
-        reversion_de_id: reversionEnCurso.id,
-      },
+        reversion_de_id: selectedLiberacion.id,
+        cantidad_revertida: cantidadRevertir,
+      }
     ])
 
-    if (error) {
-      toast({ title: "Error", description: "No se pudo revertir", variant: "destructive" })
-    } else {
-      toast({ title: "Liberación revertida", description: `Revertiste ${cantidadRevertir} piezas` })
-      setReversionEnCurso(null)
-      setCantidadRevertir(0)
-      await fetchData()
+    if (!error) {
+      toast({ title: "Reversión registrada", description: `Revertiste ${cantidadRevertir} piezas` })
+      setModalRevertirOpen(false)
+      fetchData()
     }
   }
 
   function renderTabla(area: string) {
-    const planesArea = planes.filter((p) => p.area === area)
+    const planesFiltrados = planes.filter((p) => p.area === area)
     return (
       <Card key={area}>
         <CardHeader><CardTitle>{area}</CardTitle></CardHeader>
         <CardContent>
           <div className="overflow-x-auto">
-            <table className="w-full text-sm min-w-[1000px] border">
+            <table className="w-full border text-sm min-w-[1000px]">
               <thead className="bg-gray-100">
                 <tr>
                   <th className="border px-2 py-1">Producto</th>
@@ -206,10 +173,11 @@ export default function PlanesPage() {
                   <th className="border px-2 py-1">Liberado</th>
                   <th className="border px-2 py-1">Pendiente</th>
                   <th className="border px-2 py-1">Acción</th>
+                  <th className="border px-2 py-1">Historial</th>
                 </tr>
               </thead>
               <tbody>
-                {planesArea.map((plan) => {
+                {planesFiltrados.map((plan) => {
                   const liberado = calcularLiberado(plan.id)
                   const pendiente = calcularPendiente(plan)
                   return (
@@ -219,9 +187,19 @@ export default function PlanesPage() {
                       <td className="border px-2 py-1">{plan.cantidad}</td>
                       <td className="border px-2 py-1">{liberado}</td>
                       <td className="border px-2 py-1">{pendiente}</td>
-                      <td className="border px-2 py-1 text-center space-x-2">
-                        <Button size="sm" onClick={() => abrirModalLiberar(plan)} disabled={pendiente <= 0}>Liberar</Button>
-                        <Button size="sm" variant="secondary" onClick={() => abrirModalHistorial(plan)}>Historial</Button>
+                      <td className="border px-2 py-1">
+                        <Button size="sm" onClick={() => {
+                          setSelectedPlan(plan)
+                          setCantidadLiberar(0)
+                          setUsuarioAccion("")
+                          setModalLiberarOpen(true)
+                        }}>Liberar</Button>
+                      </td>
+                      <td className="border px-2 py-1">
+                        <Button size="sm" variant="secondary" onClick={() => {
+                          setSelectedPlan(plan)
+                          setModalHistorialOpen(true)
+                        }}>Liberaciones</Button>
                       </td>
                     </tr>
                   )
@@ -235,100 +213,106 @@ export default function PlanesPage() {
   }
 
   return (
-    <div className="p-4">
-      <h1 className="text-xl font-bold mb-4">Planes de Trabajo</h1>
-      {renderTabla("SILLAS")}
-      {renderTabla("SALAS")}
+    <div className="p-4 max-w-7xl mx-auto">
+      <h1 className="text-2xl font-bold mb-4">Planes de Trabajo</h1>
+      {loading ? (
+        <div className="flex justify-center items-center h-32">
+          <Loader2 className="animate-spin w-8 h-8" />
+        </div>
+      ) : (
+        <>
+          {renderTabla("SILLAS")}
+          {renderTabla("SALAS")}
+        </>
+      )}
 
       {/* Modal Liberar */}
       <Dialog open={modalLiberarOpen} onOpenChange={setModalLiberarOpen}>
-        <DialogContent>
+        <DialogContent className="max-w-md">
           <DialogHeader><DialogTitle>Liberar piezas</DialogTitle></DialogHeader>
-          <div className="space-y-3">
-            <Label>Cantidad</Label>
-            <Input type="number" value={cantidadLiberar} onChange={(e) => setCantidadLiberar(parseInt(e.target.value))} />
-            <Label>Quién libera</Label>
-            <Input type="text" value={liberadoPor} onChange={(e) => setLiberadoPor(e.target.value)} />
-            <div className="flex justify-end">
-              <Button onClick={handleLiberar}>Guardar</Button>
+          <form onSubmit={(e) => { e.preventDefault(); handleLiberar() }} className="space-y-4">
+            <div><Label>Cantidad</Label>
+              <Input type="number" value={cantidadLiberar} min={1} onChange={(e) => setCantidadLiberar(Number(e.target.value))} />
             </div>
-          </div>
+            <div><Label>Usuario</Label>
+              <Input value={usuarioAccion} onChange={(e) => setUsuarioAccion(e.target.value)} />
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button type="button" variant="secondary" onClick={() => setModalLiberarOpen(false)}>Cancelar</Button>
+              <Button type="submit">Guardar</Button>
+            </div>
+          </form>
         </DialogContent>
       </Dialog>
 
       {/* Modal Historial */}
       <Dialog open={modalHistorialOpen} onOpenChange={setModalHistorialOpen}>
-        <DialogContent className="max-w-2xl">
-          <DialogHeader><DialogTitle>Historial de Liberaciones</DialogTitle></DialogHeader>
-          <div className="overflow-auto max-h-[400px]">
-            {selectedPlan && liberaciones[selectedPlan.id]?.length ? (
-              <table className="w-full text-sm border">
-                <thead>
-                  <tr className="bg-gray-200">
-                    <th className="border px-2 py-1">Cantidad</th>
-                    <th className="border px-2 py-1">Usuario</th>
-                    <th className="border px-2 py-1">Fecha</th>
-                    <th className="border px-2 py-1">Acción</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {liberaciones[selectedPlan.id].map((lib) => {
-                    const cantidadYaRevertida = obtenerCantidadYaRevertida(lib.id)
-                    const cantidadDisponible = lib.cantidad - cantidadYaRevertida
-                    const puedeRevertirse = lib.cantidad > 0 && cantidadDisponible > 0
-
-                    return (
-                      <tr key={lib.id}>
-                        <td className="border px-2 py-1 text-center">{lib.cantidad}</td>
-                        <td className="border px-2 py-1 text-center">{lib.usuario}</td>
-                        <td className="border px-2 py-1 text-center">{new Date(lib.fecha).toLocaleString()}</td>
-                        <td className="border px-2 py-1 text-center">
-                          {puedeRevertirse && (
-                            <Button
-                              size="sm"
-                              variant="destructive"
-                              onClick={() => {
-                                setReversionEnCurso(lib)
-                                setCantidadRevertir(0)
-                              }}
-                            >
-                              Revertir
-                            </Button>
-                          )}
-                        </td>
-                      </tr>
-                    )
-                  })}
-                </tbody>
-              </table>
-            ) : (
-              <p>No hay liberaciones</p>
-            )}
-          </div>
+        <DialogContent className="max-w-lg max-h-[80vh] overflow-auto">
+          <DialogHeader><DialogTitle>Historial</DialogTitle></DialogHeader>
+          {selectedPlan && liberaciones[selectedPlan.id]?.length ? (
+            <table className="w-full text-sm border mt-4">
+              <thead>
+                <tr className="bg-gray-100">
+                  <th className="border px-2 py-1">Cantidad</th>
+                  <th className="border px-2 py-1">Usuario</th>
+                  <th className="border px-2 py-1">Fecha</th>
+                  <th className="border px-2 py-1">Revertir</th>
+                </tr>
+              </thead>
+              <tbody>
+                {liberaciones[selectedPlan.id].map((lib) => {
+                  const revertido = getCantidadRevertida(lib, liberaciones[selectedPlan.id])
+                  const puedeRevertir = lib.cantidad > 0 && revertido < lib.cantidad
+                  return (
+                    <tr key={lib.id}>
+                      <td className={`border px-2 py-1 text-center ${lib.cantidad < 0 ? "text-red-500 font-bold" : ""}`}>{lib.cantidad}</td>
+                      <td className="border px-2 py-1 text-center">{lib.usuario}</td>
+                      <td className="border px-2 py-1 text-center">{new Date(lib.fecha).toLocaleString()}</td>
+                      <td className="border px-2 py-1 text-center">
+                        {puedeRevertir && (
+                          <Button variant="destructive" size="sm" onClick={() => {
+                            setSelectedLiberacion(lib)
+                            setCantidadRevertir(0)
+                            setUsuarioAccion("")
+                            setModalRevertirOpen(true)
+                          }}>
+                            Revertir
+                          </Button>
+                        )}
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          ) : <p>No hay liberaciones.</p>}
         </DialogContent>
       </Dialog>
 
-      {/* Modal de reversión parcial */}
-      <Dialog open={!!reversionEnCurso} onOpenChange={() => setReversionEnCurso(null)}>
+      {/* Modal Revertir Parcial */}
+      <Dialog open={modalRevertirOpen} onOpenChange={setModalRevertirOpen}>
         <DialogContent className="max-w-md">
-          <DialogHeader><DialogTitle>Reversión parcial</DialogTitle></DialogHeader>
-          {reversionEnCurso && (
-            <div className="space-y-3">
-              <p>Liberación de <strong>{reversionEnCurso.usuario}</strong>, cantidad total: {reversionEnCurso.cantidad}</p>
+          <DialogHeader><DialogTitle>Revertir Liberación</DialogTitle></DialogHeader>
+          <form onSubmit={(e) => { e.preventDefault(); handleRevertir() }} className="space-y-4">
+            <div>
               <Label>Cantidad a revertir</Label>
               <Input
                 type="number"
                 min={1}
-                max={reversionEnCurso.cantidad - obtenerCantidadYaRevertida(reversionEnCurso.id)}
+                max={selectedLiberacion ? selectedLiberacion.cantidad - getCantidadRevertida(selectedLiberacion, liberaciones[selectedLiberacion.plan_id]) : undefined}
                 value={cantidadRevertir}
-                onChange={(e) => setCantidadRevertir(parseInt(e.target.value))}
+                onChange={(e) => setCantidadRevertir(Number(e.target.value))}
               />
-              <div className="flex justify-end space-x-2">
-                <Button variant="secondary" onClick={() => setReversionEnCurso(null)}>Cancelar</Button>
-                <Button onClick={handleRevertirParcial}>Revertir</Button>
-              </div>
             </div>
-          )}
+            <div>
+              <Label>Usuario</Label>
+              <Input value={usuarioAccion} onChange={(e) => setUsuarioAccion(e.target.value)} />
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button variant="secondary" type="button" onClick={() => setModalRevertirOpen(false)}>Cancelar</Button>
+              <Button type="submit">Revertir</Button>
+            </div>
+          </form>
         </DialogContent>
       </Dialog>
     </div>
