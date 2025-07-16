@@ -42,9 +42,6 @@ type Liberacion = {
   cantidad: number
   fecha: string
   usuario: string
-  revertida?: boolean
-  reversion_de_id?: string | null
-  cantidad_revertida?: number | null
 }
 
 export default function PlanesPage() {
@@ -53,24 +50,12 @@ export default function PlanesPage() {
   const [liberaciones, setLiberaciones] = useState<Record<string, Liberacion[]>>({})
   const [loading, setLoading] = useState(true)
 
-  // Modales
   const [modalLiberarOpen, setModalLiberarOpen] = useState(false)
   const [modalHistorialOpen, setModalHistorialOpen] = useState(false)
-  const [modalRevertirOpen, setModalRevertirOpen] = useState(false)
-
-  // Plan o liberacion seleccionada
   const [selectedPlan, setSelectedPlan] = useState<PlanTrabajo | null>(null)
-  const [selectedLiberacion, setSelectedLiberacion] = useState<Liberacion | null>(null)
 
-  // Inputs liberar
   const [cantidadLiberar, setCantidadLiberar] = useState<number>(0)
   const [liberadoPor, setLiberadoPor] = useState("")
-
-  // Inputs revertir
-  const [cantidadRevertir, setCantidadRevertir] = useState<number>(0)
-  const [revertidoPor, setRevertidoPor] = useState("")
-
-  // Filtro texto
   const [filtroTexto, setFiltroTexto] = useState("")
 
   useEffect(() => {
@@ -88,7 +73,6 @@ export default function PlanesPage() {
       const { data: liberacionesData } = await supabase
         .from("liberaciones")
         .select("id, plan_id, cantidad, fecha, usuario")
-        .select("id, plan_id, cantidad, fecha, usuario, revertida, reversion_de_id, cantidad_revertida")
         .order("fecha", { ascending: false })
 
       setPlanes(planesData || [])
@@ -113,7 +97,6 @@ export default function PlanesPage() {
 
   function calcularLiberado(planId: string): number {
     const libs = liberaciones[planId] || []
-    // Sumamos todas las cantidades incluyendo reversas (negativas)
     return libs.reduce((sum, l) => sum + l.cantidad, 0)
   }
 
@@ -121,13 +104,6 @@ export default function PlanesPage() {
     return plan.cantidad - calcularLiberado(plan.id)
   }
 
-  // Calcula cuánto queda por revertir de una liberacion dada
-  function cantidadPendienteReversion(liberacion: Liberacion): number {
-    const cantidadRevertida = liberacion.cantidad_revertida || 0
-    return liberacion.cantidad - cantidadRevertida
-  }
-
-  // Abrir modal liberar
   function abrirModalLiberar(plan: PlanTrabajo) {
     setSelectedPlan(plan)
     setCantidadLiberar(0)
@@ -135,21 +111,11 @@ export default function PlanesPage() {
     setModalLiberarOpen(true)
   }
 
-  // Abrir modal historial
   function abrirModalHistorial(plan: PlanTrabajo) {
     setSelectedPlan(plan)
     setModalHistorialOpen(true)
   }
 
-  // Abrir modal revertir liberacion
-  function abrirModalRevertir(liberacion: Liberacion) {
-    setSelectedLiberacion(liberacion)
-    setCantidadRevertir(0)
-    setRevertidoPor("")
-    setModalRevertirOpen(true)
-  }
-
-  // Manejar liberar
   async function handleLiberar() {
     if (!selectedPlan) return
     if (cantidadLiberar <= 0 || cantidadLiberar > calcularPendiente(selectedPlan)) {
@@ -175,9 +141,6 @@ export default function PlanesPage() {
           cantidad: cantidadLiberar,
           usuario: liberadoPor.trim(),
           fecha: new Date().toISOString(),
-          revertida: false,
-          reversion_de_id: null,
-          cantidad_revertida: 0,
         },
       ])
       if (error) throw error
@@ -193,74 +156,6 @@ export default function PlanesPage() {
       toast({
         title: "Error",
         description: "No se pudo registrar la liberación",
-        variant: "destructive",
-      })
-    }
-  }
-
-  // Manejar reversión
-  async function handleRevertir() {
-    if (!selectedLiberacion) return
-    if (cantidadRevertir <= 0) {
-      toast({
-        title: "Cantidad inválida",
-        description: "Debe ser mayor a cero",
-        variant: "destructive",
-      })
-      return
-    }
-    const pendiente = cantidadPendienteReversion(selectedLiberacion)
-    if (cantidadRevertir > pendiente) {
-      toast({
-        title: "Cantidad excedida",
-        description: "No puedes revertir más que lo pendiente",
-        variant: "destructive",
-      })
-      return
-    }
-    if (revertidoPor.trim().length === 0) {
-      toast({
-        title: "Falta nombre",
-        description: "Debes ingresar quién revierte",
-        variant: "destructive",
-      })
-      return
-    }
-    try {
-      // Insertar reversión como nueva fila negativa
-      const { error: errorInsert } = await supabase.from("liberaciones").insert([
-        {
-          plan_id: selectedLiberacion.plan_id,
-          cantidad: -cantidadRevertir,
-          usuario: revertidoPor.trim(),
-          fecha: new Date().toISOString(),
-          revertida: true,
-          reversion_de_id: selectedLiberacion.id,
-          cantidad_revertida: cantidadRevertir,
-        },
-      ])
-      if (errorInsert) throw errorInsert
-
-      // Actualizar liberación original con nueva cantidad_revertida y si está completamente revertida
-      const nuevaCantidadRevertida = (selectedLiberacion.cantidad_revertida || 0) + cantidadRevertir
-      const revertidaCompleta = nuevaCantidadRevertida >= selectedLiberacion.cantidad
-      const { error: errorUpdate } = await supabase
-        .from("liberaciones")
-        .update({ cantidad_revertida: nuevaCantidadRevertida, revertida: revertidaCompleta })
-        .eq("id", selectedLiberacion.id)
-      if (errorUpdate) throw errorUpdate
-
-      toast({
-        title: "Reversión exitosa",
-        description: `Se revirtieron ${cantidadRevertir} piezas.`,
-      })
-      setModalRevertirOpen(false)
-      await fetchData()
-    } catch (error) {
-      console.error(error)
-      toast({
-        title: "Error",
-        description: "No se pudo revertir la liberación",
         variant: "destructive",
       })
     }
@@ -318,7 +213,6 @@ export default function PlanesPage() {
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full border text-sm min-w-[1000px]">
-              <table className="w-full border text-sm min-w-[1100px]">
                 <thead className="bg-gray-100">
                   <tr>
                     <th className="border px-2 py-1">Fecha</th>
@@ -334,8 +228,6 @@ export default function PlanesPage() {
                     <th className="border px-2 py-1">Pendiente</th>
                     <th className="border px-2 py-1">Acciones</th>
                     <th className="border px-2 py-1">Historial</th>
-                    <th className="border px-2 py-1 text-center">Acciones</th>
-                    <th className="border px-2 py-1 text-center">Historial</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -356,7 +248,6 @@ export default function PlanesPage() {
                         <td className="border px-2 py-1">{liberado}</td>
                         <td className="border px-2 py-1">{pendiente}</td>
                         <td className="border px-2 py-1 text-center">
-                        <td className="border px-2 py-1 text-center space-x-1">
                           <Button size="sm" onClick={() => abrirModalLiberar(plan)} disabled={pendiente <= 0}>
                             Liberar
                           </Button>
@@ -465,8 +356,6 @@ export default function PlanesPage() {
                       <th className="border px-2 py-1">Cantidad</th>
                       <th className="border px-2 py-1">Usuario</th>
                       <th className="border px-2 py-1">Fecha</th>
-                      <th className="border px-2 py-1">Revertida</th>
-                      <th className="border px-2 py-1">Acciones</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -477,25 +366,6 @@ export default function PlanesPage() {
                         <td className="border px-2 py-1 text-center">{new Date(lib.fecha).toLocaleString()}</td>
                       </tr>
                     ))}
-                    {liberaciones[selectedPlan.id].map((lib) => {
-                      const pendienteReversion = cantidadPendienteReversion(lib)
-                      const puedeRevertir = pendienteReversion > 0 && !lib.reversion_de_id // no puede revertir reversión
-                      return (
-                        <tr key={lib.id}>
-                          <td className="border px-2 py-1 text-center">{lib.cantidad}</td>
-                          <td className="border px-2 py-1 text-center">{lib.usuario}</td>
-                          <td className="border px-2 py-1 text-center">{new Date(lib.fecha).toLocaleString()}</td>
-                          <td className="border px-2 py-1 text-center">{lib.revertida ? "✅" : "—"}</td>
-                          <td className="border px-2 py-1 text-center">
-                            {puedeRevertir && (
-                              <Button size="xs" variant="outline" onClick={() => abrirModalRevertir(lib)}>
-                                Revertir
-                              </Button>
-                            )}
-                          </td>
-                        </tr>
-                      )
-                    })}
                   </tbody>
                 </table>
               ) : (
@@ -504,50 +374,9 @@ export default function PlanesPage() {
             </div>
           </DialogContent>
         </Dialog>
-
-        {/* Modal Revertir */}
-        <Dialog open={modalRevertirOpen} onOpenChange={setModalRevertirOpen}>
-          <DialogContent className="max-w-md">
-            <DialogHeader>
-              <DialogTitle>Revertir Liberación</DialogTitle>
-            </DialogHeader>
-            <form
-              onSubmit={(e) => {
-                e.preventDefault()
-                handleRevertir()
-              }}
-              className="space-y-4 p-2"
-            >
-              <div>
-                <Label>Cantidad a revertir</Label>
-                <Input
-                  type="number"
-                  min={1}
-                  max={selectedLiberacion ? cantidadPendienteReversion(selectedLiberacion) : undefined}
-                  value={cantidadRevertir}
-                  onChange={(e) => setCantidadRevertir(parseInt(e.target.value))}
-                  required
-                />
-              </div>
-              <div>
-                <Label>Quién revierte</Label>
-                <Input
-                  type="text"
-                  value={revertidoPor}
-                  onChange={(e) => setRevertidoPor(e.target.value)}
-                  required
-                />
-              </div>
-              <div className="flex justify-end space-x-2">
-                <Button type="button" variant="secondary" onClick={() => setModalRevertirOpen(false)}>
-                  Cancelar
-                </Button>
-                <Button type="submit">Guardar</Button>
-              </div>
-            </form>
-          </DialogContent>
-        </Dialog>
       </div>
     </div>
   )
 }
+
+Esta bien el código? Me lo regresas por favor 
