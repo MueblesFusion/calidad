@@ -14,7 +14,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { useToast } from "@/hooks/use-toast"
 import { createClient } from "@supabase/supabase-js"
 import { Loader2 } from "lucide-react"
-import * as XLSX from "xlsx"
+import * as XLSX from "xlsx-style"
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
