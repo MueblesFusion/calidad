@@ -59,6 +59,7 @@
     "tailwindcss-animate": "^1.0.7",
     "vaul": "^0.9.6",
     "xlsx": "latest",
+    "xlsx-style": "^0.8.13",
     "zod": "^3.24.1",
     "uuid": "^9.0.0"
   },
