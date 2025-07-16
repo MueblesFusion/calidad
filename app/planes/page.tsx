@@ -168,19 +168,29 @@ export default function PlanesPage() {
     return textoPlan.includes(filtro)
   })
 
+  // ----------- Función actualizada para exportar con columnas completas y estilo ----------
   function exportarLiberacionesAExcel() {
     const data: any[] = []
 
     planesFiltrados.forEach((plan) => {
       const historial = liberaciones[plan.id] || []
       historial.forEach((lib) => {
+        const liberado = calcularLiberado(plan.id)
+        const pendiente = plan.cantidad - liberado
         data.push({
-          Fecha: new Date(lib.fecha).toLocaleString(),
           Área: plan.area,
+          "Fecha de liberación": new Date(lib.fecha).toLocaleString(),
+          "Cantidad liberada": lib.cantidad,
           Producto: plan.producto,
+          Color: plan.color,
+          LF: plan.lf,
+          PT: plan.pt,
+          LP: plan.lp,
+          Pedido: plan.pedido,
           Cliente: plan.cliente,
-          Cantidad: lib.cantidad,
-          Usuario: lib.usuario,
+          Cantidad: plan.cantidad,
+          Liberado: liberado,
+          Pendiente: pendiente,
         })
       })
     })
@@ -194,11 +204,25 @@ export default function PlanesPage() {
       return
     }
 
-    // Crear worksheet sin encabezados para escribirlos manualmente y aplicar estilos
-    const worksheet = XLSX.utils.json_to_sheet(data, { origin: 1 }) // empieza en fila 2 (índice 1)
+    const worksheet = XLSX.utils.json_to_sheet(data, { origin: 1 }) // Datos desde fila 2
 
-    // Definir encabezados manualmente en fila 1 (índice 0)
-    const headers = ["Fecha", "Área", "Producto", "Cliente", "Cantidad", "Usuario"]
+    const headers = [
+      "Área",
+      "Fecha de liberación",
+      "Cantidad liberada",
+      "Producto",
+      "Color",
+      "LF",
+      "PT",
+      "LP",
+      "Pedido",
+      "Cliente",
+      "Cantidad",
+      "Liberado",
+      "Pendiente",
+    ]
+
+    // Escribir encabezados manualmente con estilos
     headers.forEach((header, colIdx) => {
       const cellRef = XLSX.utils.encode_cell({ c: colIdx, r: 0 })
       worksheet[cellRef] = {
@@ -218,8 +242,8 @@ export default function PlanesPage() {
       }
     })
 
-    // Estilos para filas alternadas y bordes
-    const totalRows = data.length + 1 // +1 por encabezado
+    // Estilos filas alternadas y bordes
+    const totalRows = data.length + 1 // filas totales incluyendo encabezado
     for (let row = 1; row < totalRows; row++) {
       const fillColor = row % 2 === 0 ? "FFFFFF" : "F2F2F2"
       for (let col = 0; col < headers.length; col++) {
@@ -228,7 +252,12 @@ export default function PlanesPage() {
         worksheet[cellRef].s = {
           fill: { fgColor: { rgb: fillColor } },
           font: { color: { rgb: "000000" }, bold: false },
-          alignment: { horizontal: col === 4 ? "right" : "left", vertical: "center" }, // Cantidad a la derecha
+          alignment: {
+            horizontal: ["Cantidad liberada", "Cantidad", "Liberado", "Pendiente"].includes(headers[col])
+              ? "right"
+              : "left",
+            vertical: "center",
+          },
           border: {
             top: { style: "thin", color: { rgb: "000000" } },
             bottom: { style: "thin", color: { rgb: "000000" } },
@@ -239,25 +268,31 @@ export default function PlanesPage() {
       }
     }
 
-    // Anchos de columnas
+    // Anchos columnas aproximados
     worksheet["!cols"] = [
-      { wch: 20 }, // Fecha
       { wch: 10 }, // Área
+      { wch: 20 }, // Fecha de liberación
+      { wch: 15 }, // Cantidad liberada
       { wch: 25 }, // Producto
+      { wch: 15 }, // Color
+      { wch: 8 },  // LF
+      { wch: 8 },  // PT
+      { wch: 8 },  // LP
+      { wch: 15 }, // Pedido
       { wch: 25 }, // Cliente
       { wch: 10 }, // Cantidad
-      { wch: 20 }, // Usuario
+      { wch: 10 }, // Liberado
+      { wch: 10 }, // Pendiente
     ]
 
-    // Autofiltro en el rango completo
-    worksheet["!autofilter"] = { ref: `A1:F${totalRows}` }
+    worksheet["!autofilter"] = { ref: `A1:M${totalRows}` }
 
-    // Crear libro y agregar hoja
     const workbook = XLSX.utils.book_new()
     XLSX.utils.book_append_sheet(workbook, worksheet, "Liberaciones")
 
     XLSX.writeFile(workbook, "liberaciones.xlsx")
   }
+  // ----------- Fin función exportar -----------
 
   function renderTabla(area: "SILLAS" | "SALAS") {
     const planesArea = planesFiltrados.filter((p) => p.area === area)
