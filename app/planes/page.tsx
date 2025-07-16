@@ -96,10 +96,11 @@ export default function PlanesPage() {
     }
   }
 
-  // Solo sumamos las cantidades de liberaciones NO revertidas
+  // Suma todas las liberaciones, tomando en cuenta las revertidas (que deberían sumar 0 porque cantidad no cambia, solo revertida)
   function calcularLiberado(planId: string): number {
     const libs = liberaciones[planId] || []
-    return libs.reduce((sum, l) => sum + (l.revertida ? 0 : l.cantidad), 0)
+    // Solo sumamos las liberaciones no revertidas
+    return libs.reduce((sum, l) => (l.revertida ? sum : sum + l.cantidad), 0)
   }
 
   function calcularPendiente(plan: PlanTrabajo): number {
@@ -159,6 +160,32 @@ export default function PlanesPage() {
       toast({
         title: "Error",
         description: "No se pudo registrar la liberación",
+        variant: "destructive",
+      })
+    }
+  }
+
+  async function handleRevertirLiberacion(liberacionId: string) {
+    try {
+      const { error } = await supabase
+        .from("liberaciones")
+        .update({ revertida: true })
+        .eq("id", liberacionId)
+
+      if (error) throw error
+
+      toast({
+        title: "Liberación revertida",
+        description: "La liberación fue marcada como revertida",
+      })
+
+      // Refrescar datos
+      await fetchData()
+    } catch (error) {
+      console.error(error)
+      toast({
+        title: "Error",
+        description: "No se pudo revertir la liberación",
         variant: "destructive",
       })
     }
@@ -361,6 +388,7 @@ export default function PlanesPage() {
                       <th className="border px-2 py-1">Usuario</th>
                       <th className="border px-2 py-1">Fecha</th>
                       <th className="border px-2 py-1">Revertida</th>
+                      <th className="border px-2 py-1">Acción</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -370,6 +398,17 @@ export default function PlanesPage() {
                         <td className="border px-2 py-1 text-center">{lib.usuario}</td>
                         <td className="border px-2 py-1 text-center">{new Date(lib.fecha).toLocaleString()}</td>
                         <td className="border px-2 py-1 text-center">{lib.revertida ? "Sí" : "No"}</td>
+                        <td className="border px-2 py-1 text-center">
+                          {!lib.revertida && (
+                            <Button
+                              size="xs"
+                              variant="destructive"
+                              onClick={() => handleRevertirLiberacion(lib.id)}
+                            >
+                              Revertir
+                            </Button>
+                          )}
+                        </td>
                       </tr>
                     ))}
                   </tbody>
