@@ -82,8 +82,14 @@ export default function PlanesPage() {
         .select("id, plan_id, cantidad, fecha, usuario")
         .order("fecha", { ascending: false })
 
-      // Unimos ambos arrays para manejar todos los planes juntos en el front
-      const todosPlanes = [...(planesData || []), ...(planesSillasData || [])]
+      // Forzar area = "SILLAS" para planes_trabajo_sillas
+      const planesSillasConArea = (planesSillasData || []).map(plan => ({
+        ...plan,
+        area: "SILLAS"
+      }))
+
+      // Combinar todos los planes
+      const todosPlanes = [...(planesData || []), ...planesSillasConArea]
 
       setPlanes(todosPlanes)
 
@@ -166,6 +172,156 @@ export default function PlanesPage() {
   const planesSillas = planesFiltrados.filter((p) => p.area === "SILLAS")
   const planesSalas = planesFiltrados.filter((p) => p.area === "SALAS")
 
+  function exportarLiberacionesAExcel() {
+    // Función para preparar datos para cada área
+    function prepararDatos(planesArea: PlanTrabajo[]) {
+      const data: any[] = []
+
+      planesArea.forEach((plan) => {
+        const historial = liberaciones[plan.id] || []
+        historial.forEach((lib) => {
+          const fechaLib = new Date(lib.fecha)
+          if (
+            (filtroFechaInicio && fechaLib < new Date(filtroFechaInicio)) ||
+            (filtroFechaFin && fechaLib > new Date(filtroFechaFin))
+          ) {
+            return
+          }
+
+          const liberado = calcularLiberado(plan.id)
+          const pendiente = plan.cantidad - liberado
+
+          data.push({
+            "Fecha de liberación": fechaLib.toLocaleString(),
+            Producto: plan.producto,
+            Color: plan.color,
+            LF: plan.lf,
+            PT: plan.pt,
+            LP: plan.lp,
+            Pedido: plan.pedido,
+            Cliente: plan.cliente,
+            Cantidad: plan.cantidad,
+            Liberado: liberado,
+            Pendiente: pendiente,
+            "Cantidad liberada": lib.cantidad,
+            Usuario: lib.usuario,
+          })
+        })
+      })
+
+      return data
+    }
+
+    const dataSillas = prepararDatos(planesSillas)
+    const dataSalas = prepararDatos(planesSalas)
+
+    if (dataSillas.length === 0 && dataSalas.length === 0) {
+      toast({
+        title: "Sin datos",
+        description: "No hay liberaciones para exportar con el filtro aplicado",
+        variant: "destructive",
+      })
+      return
+    }
+
+    // Helper para crear hoja con estilos
+    function crearHoja(data: any[], nombreHoja: string) {
+      const worksheet = XLSX.utils.json_to_sheet(data, { origin: 1 })
+      const headers = Object.keys(data[0] || {})
+
+      // Título con rango de fechas arriba (fila 1)
+      let titulo = "Liberaciones"
+      if (filtroFechaInicio && filtroFechaFin) {
+        titulo = `Liberaciones del ${new Date(filtroFechaInicio).toLocaleDateString()} al ${new Date(filtroFechaFin).toLocaleDateString()}`
+      } else if (filtroFechaInicio) {
+        titulo = `Liberaciones desde ${new Date(filtroFechaInicio).toLocaleDateString()}`
+      } else if (filtroFechaFin) {
+        titulo = `Liberaciones hasta ${new Date(filtroFechaFin).toLocaleDateString()}`
+      }
+
+      worksheet["A1"] = {
+        v: titulo,
+        t: "s",
+        s: {
+          font: { color: { rgb: "FF0000" }, bold: true, sz: 14 },
+          alignment: { horizontal: "center", vertical: "center" },
+        },
+      }
+      // Merge título en toda la fila de encabezado
+      worksheet["!merges"] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: headers.length - 1 } }]
+
+      // Estilo encabezados (fila 2)
+      headers.forEach((header, colIdx) => {
+        const cellRef = XLSX.utils.encode_cell({ c: colIdx, r: 1 })
+        worksheet[cellRef] = {
+          v: header,
+          t: "s",
+          s: {
+            fill: { fgColor: { rgb: "404040" } },
+            font: { color: { rgb: "FFFFFF" }, bold: true },
+            alignment: { horizontal: "center", vertical: "center" },
+            border: {
+              top: { style: "thin", color: { rgb: "000000" } },
+              bottom: { style: "thin", color: { rgb: "000000" } },
+              left: { style: "thin", color: { rgb: "000000" } },
+              right: { style: "thin", color: { rgb: "000000" } },
+            },
+          },
+        }
+      })
+
+      // Estilo filas de datos (desde fila 3)
+      for (let row = 2; row < data.length + 2; row++) {
+        const fillColor = row % 2 === 0 ? "FFFFFF" : "F2F2F2"
+        for (let col = 0; col < headers.length; col++) {
+          const cellRef = XLSX.utils.encode_cell({ c: col, r: row })
+          if (!worksheet[cellRef]) continue
+          worksheet[cellRef].s = {
+            fill: { fgColor: { rgb: fillColor } },
+            font: { color: { rgb: "000000" } },
+            alignment: { horizontal: "left", vertical: "center" },
+            border: {
+              top: { style: "thin", color: { rgb: "000000" } },
+              bottom: { style: "thin", color: { rgb: "000000" } },
+              left: { style: "thin", color: { rgb: "000000" } },
+              right: { style: "thin", color: { rgb: "000000" } },
+            },
+          }
+        }
+      }
+
+      // Auto ancho columnas
+      worksheet["!cols"] = headers.map((header) => {
+        const maxLength = Math.max(
+          header.length,
+          ...data.map((d) => (d[header] ? d[header].toString().length : 0))
+        )
+        return { wch: maxLength + 5 }
+      })
+
+      // Filtros en fila de encabezado (fila 2)
+      const lastCol = String.fromCharCode(65 + headers.length - 1)
+      worksheet["!autofilter"] = {
+        ref: `A2:${lastCol}${data.length + 2}`,
+      }
+
+      return worksheet
+    }
+
+    const wb = XLSX.utils.book_new()
+
+    if (dataSillas.length > 0) {
+      const wsSillas = crearHoja(dataSillas, "SILLAS")
+      XLSX.utils.book_append_sheet(wb, wsSillas, "SILLAS")
+    }
+
+    if (dataSalas.length > 0) {
+      const wsSalas = crearHoja(dataSalas, "SALAS")
+      XLSX.utils.book_append_sheet(wb, wsSalas, "SALAS")
+    }
+
+    XLSX.writeFile(wb, "liberaciones_planes_trabajo.xlsx")
+  }
   function renderTabla(area: "SILLAS" | "SALAS") {
     const planesArea = planesFiltrados.filter((p) => p.area === area)
     const gruposPorLp: Record<string, PlanTrabajo[]> = {}
@@ -246,253 +402,6 @@ export default function PlanesPage() {
       </Card>
     )
   }
-  // Modal para liberar piezas
-  function ModalLiberar() {
-    if (!selectedPlan) return null
-    const pendiente = calcularPendiente(selectedPlan)
-
-    return (
-      <Dialog open={modalLiberarOpen} onOpenChange={setModalLiberarOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Liberar piezas - {selectedPlan.producto}</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div>
-              <Label htmlFor="cantidad">Cantidad a liberar (pendiente: {pendiente})</Label>
-              <Input
-                id="cantidad"
-                type="number"
-                min={1}
-                max={pendiente}
-                value={cantidadLiberar}
-                onChange={(e) => setCantidadLiberar(Number(e.target.value))}
-              />
-            </div>
-            <div>
-              <Label htmlFor="usuario">Nombre de quien libera</Label>
-              <Input
-                id="usuario"
-                type="text"
-                value={liberadoPor}
-                onChange={(e) => setLiberadoPor(e.target.value)}
-              />
-            </div>
-            <div className="flex justify-end space-x-2">
-              <Button variant="secondary" onClick={() => setModalLiberarOpen(false)}>
-                Cancelar
-              </Button>
-              <Button onClick={handleLiberar}>Confirmar</Button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
-    )
-  }
-
-  // Modal para mostrar historial de liberaciones de un plan
-  function ModalHistorial() {
-    if (!selectedPlan) return null
-    const historial = liberaciones[selectedPlan.id] || []
-
-    // Filtrar por fecha en historial
-    const historialFiltrado = historial.filter((lib) => {
-      const fechaLib = new Date(lib.fecha)
-      if (filtroFechaInicio && fechaLib < new Date(filtroFechaInicio)) return false
-      if (filtroFechaFin && fechaLib > new Date(filtroFechaFin)) return false
-      return true
-    })
-
-    return (
-      <Dialog open={modalHistorialOpen} onOpenChange={setModalHistorialOpen}>
-        <DialogContent className="max-w-3xl">
-          <DialogHeader>
-            <DialogTitle>Historial de liberaciones - {selectedPlan.producto}</DialogTitle>
-          </DialogHeader>
-
-          <div className="overflow-x-auto max-h-96">
-            {historialFiltrado.length === 0 ? (
-              <p>No hay liberaciones para el filtro de fechas aplicado.</p>
-            ) : (
-              <table className="w-full text-sm border">
-                <thead className="bg-gray-100">
-                  <tr>
-                    <th className="border px-2 py-1">Fecha</th>
-                    <th className="border px-2 py-1">Cantidad</th>
-                    <th className="border px-2 py-1">Usuario</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {historialFiltrado.map((lib) => (
-                    <tr key={lib.id}>
-                      <td className="border px-2 py-1">{new Date(lib.fecha).toLocaleString()}</td>
-                      <td className="border px-2 py-1">{lib.cantidad}</td>
-                      <td className="border px-2 py-1">{lib.usuario}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            )}
-          </div>
-
-          <div className="mt-4 flex justify-end">
-            <Button onClick={() => setModalHistorialOpen(false)}>Cerrar</Button>
-          </div>
-        </DialogContent>
-      </Dialog>
-    )
-  }
-
-  // Función para exportar liberaciones a Excel con dos hojas: SILLAS y SALAS
-  function exportarLiberacionesAExcel() {
-    // Prepara datos para cada área, filtrando por fecha
-    function prepararDatos(planesArea: PlanTrabajo[]) {
-      const data: any[] = []
-
-      planesArea.forEach((plan) => {
-        const historial = liberaciones[plan.id] || []
-        historial.forEach((lib) => {
-          const fechaLib = new Date(lib.fecha)
-          if (
-            (filtroFechaInicio && fechaLib < new Date(filtroFechaInicio)) ||
-            (filtroFechaFin && fechaLib > new Date(filtroFechaFin))
-          ) {
-            return
-          }
-
-          const liberado = calcularLiberado(plan.id)
-          const pendiente = plan.cantidad - liberado
-
-          data.push({
-            "Fecha de liberación": fechaLib.toLocaleString(),
-            Producto: plan.producto,
-            Color: plan.color,
-            LF: plan.lf,
-            PT: plan.pt,
-            LP: plan.lp,
-            Pedido: plan.pedido,
-            Cliente: plan.cliente,
-            Cantidad: plan.cantidad,
-            Liberado: liberado,
-            Pendiente: pendiente,
-            "Cantidad liberada": lib.cantidad,
-            Usuario: lib.usuario,
-          })
-        })
-      })
-
-      return data
-    }
-
-    const dataSillas = prepararDatos(planesSillas)
-    const dataSalas = prepararDatos(planesSalas)
-
-    if (dataSillas.length === 0 && dataSalas.length === 0) {
-      toast({
-        title: "Sin datos",
-        description: "No hay liberaciones para exportar con el filtro aplicado",
-        variant: "destructive",
-      })
-      return
-    }
-
-    // Crear hoja Excel con estilo
-    function crearHoja(data: any[], nombreHoja: string) {
-      const worksheet = XLSX.utils.json_to_sheet(data, { origin: 1 })
-      const headers = Object.keys(data[0] || {})
-
-      // Título con rango de fechas en fila 1
-      let titulo = "Liberaciones"
-      if (filtroFechaInicio && filtroFechaFin) {
-        titulo = `Liberaciones del ${new Date(filtroFechaInicio).toLocaleDateString()} al ${new Date(filtroFechaFin).toLocaleDateString()}`
-      } else if (filtroFechaInicio) {
-        titulo = `Liberaciones desde ${new Date(filtroFechaInicio).toLocaleDateString()}`
-      } else if (filtroFechaFin) {
-        titulo = `Liberaciones hasta ${new Date(filtroFechaFin).toLocaleDateString()}`
-      }
-
-      worksheet["A1"] = {
-        v: titulo,
-        t: "s",
-        s: {
-          font: { color: { rgb: "FF0000" }, bold: true, sz: 14 },
-          alignment: { horizontal: "center", vertical: "center" },
-        },
-      }
-      // Merge título en toda la fila de encabezado
-      worksheet["!merges"] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: headers.length - 1 } }]
-
-      // Estilo encabezados fila 2
-      headers.forEach((header, colIdx) => {
-        const cellRef = XLSX.utils.encode_cell({ c: colIdx, r: 1 })
-        worksheet[cellRef] = {
-          v: header,
-          t: "s",
-          s: {
-            fill: { fgColor: { rgb: "404040" } },
-            font: { color: { rgb: "FFFFFF" }, bold: true },
-            alignment: { horizontal: "center", vertical: "center" },
-            border: {
-              top: { style: "thin", color: { rgb: "000000" } },
-              bottom: { style: "thin", color: { rgb: "000000" } },
-              left: { style: "thin", color: { rgb: "000000" } },
-              right: { style: "thin", color: { rgb: "000000" } },
-            },
-          },
-        }
-      })
-
-      // Estilo filas datos (desde fila 3)
-      for (let row = 2; row < data.length + 2; row++) {
-        const fillColor = row % 2 === 0 ? "FFFFFF" : "F2F2F2"
-        for (let col = 0; col < headers.length; col++) {
-          const cellRef = XLSX.utils.encode_cell({ c: col, r: row })
-          if (!worksheet[cellRef]) continue
-          worksheet[cellRef].s = {
-            fill: { fgColor: { rgb: fillColor } },
-            font: { color: { rgb: "000000" } },
-            alignment: { horizontal: "left", vertical: "center" },
-            border: {
-              top: { style: "thin", color: { rgb: "000000" } },
-              bottom: { style: "thin", color: { rgb: "000000" } },
-              left: { style: "thin", color: { rgb: "000000" } },
-              right: { style: "thin", color: { rgb: "000000" } },
-            },
-          }
-        }
-      }
-
-      // Auto ancho columnas
-      worksheet["!cols"] = headers.map((header) => {
-        const maxLength = Math.max(
-          header.length,
-          ...data.map((d) => (d[header] ? d[header].toString().length : 0))
-        )
-        return { wch: maxLength + 5 }
-      })
-
-      // Filtros en encabezados (fila 2)
-      worksheet["!autofilter"] = {
-        ref: `A2:${String.fromCharCode(65 + headers.length - 1)}${data.length + 2}`,
-      }
-
-      return worksheet
-    }
-
-    const wb = XLSX.utils.book_new()
-
-    if (dataSillas.length > 0) {
-      const wsSillas = crearHoja(dataSillas, "SILLAS")
-      XLSX.utils.book_append_sheet(wb, wsSillas, "SILLAS")
-    }
-
-    if (dataSalas.length > 0) {
-      const wsSalas = crearHoja(dataSalas, "SALAS")
-      XLSX.utils.book_append_sheet(wb, wsSalas, "SALAS")
-    }
-
-    XLSX.writeFile(wb, "liberaciones_planes_trabajo.xlsx")
-  }
 
   return (
     <div className="min-h-screen bg-white p-4">
@@ -527,8 +436,78 @@ export default function PlanesPage() {
           </>
         )}
 
-        <ModalLiberar />
-        <ModalHistorial />
+        {/* Modal Liberar */}
+        <Dialog open={modalLiberarOpen} onOpenChange={setModalLiberarOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Registrar Liberación</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4">
+              <p>
+                Plan: <strong>{selectedPlan?.producto}</strong> - Pendiente: <strong>{selectedPlan ? calcularPendiente(selectedPlan) : 0}</strong>
+              </p>
+              <div>
+                <Label htmlFor="cantidadLiberar">Cantidad a liberar</Label>
+                <Input
+                  id="cantidadLiberar"
+                  type="number"
+                  min={1}
+                  max={selectedPlan ? calcularPendiente(selectedPlan) : 0}
+                  value={cantidadLiberar}
+                  onChange={(e) => setCantidadLiberar(Number(e.target.value))}
+                />
+              </div>
+              <div>
+                <Label htmlFor="liberadoPor">Liberado por</Label>
+                <Input
+                  id="liberadoPor"
+                  type="text"
+                  value={liberadoPor}
+                  onChange={(e) => setLiberadoPor(e.target.value)}
+                />
+              </div>
+              <div className="flex justify-end space-x-2">
+                <Button variant="outline" onClick={() => setModalLiberarOpen(false)}>
+                  Cancelar
+                </Button>
+                <Button onClick={handleLiberar}>Registrar</Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        {/* Modal Historial */}
+        <Dialog open={modalHistorialOpen} onOpenChange={setModalHistorialOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Historial de Liberaciones</DialogTitle>
+            </DialogHeader>
+            <div className="overflow-x-auto max-h-96">
+              <table className="w-full border text-sm min-w-[600px]">
+                <thead className="bg-gray-100">
+                  <tr>
+                    <th className="border px-2 py-1">Fecha</th>
+                    <th className="border px-2 py-1">Cantidad</th>
+                    <th className="border px-2 py-1">Usuario</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {(selectedPlan && liberaciones[selectedPlan.id]?.length ? liberaciones[selectedPlan.id] : []).map((lib) => (
+                    <tr key={lib.id}>
+                      <td className="border px-2 py-1">{new Date(lib.fecha).toLocaleString()}</td>
+                      <td className="border px-2 py-1">{lib.cantidad}</td>
+                      <td className="border px-2 py-1">{lib.usuario}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              {!selectedPlan || !liberaciones[selectedPlan.id]?.length ? <p>No hay liberaciones registradas.</p> : null}
+            </div>
+            <div className="flex justify-end mt-4">
+              <Button onClick={() => setModalHistorialOpen(false)}>Cerrar</Button>
+            </div>
+          </DialogContent>
+        </Dialog>
       </div>
     </div>
   )
