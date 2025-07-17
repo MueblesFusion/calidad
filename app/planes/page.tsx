@@ -77,19 +77,21 @@ export default function PlanesPage() {
         .select("*")
         .order("fecha", { ascending: false })
 
-      console.log("planes_trabajo:", planesData)
-      console.log("planes_trabajo_sillas:", planesSillasData)
-
-      // Concatenar sin modificar area, asumiendo que está correcto en la BD
-      const todosPlanes = [...(planesData || []), ...(planesSillasData || [])]
-
-      setPlanes(todosPlanes)
-
-      // Obtener liberaciones (solo de tabla principal, deberías hacer igual para liberaciones_sillas si usas esa tabla)
       const { data: liberacionesData } = await supabase
         .from("liberaciones")
         .select("id, plan_id, cantidad, fecha, usuario")
         .order("fecha", { ascending: false })
+
+      // Forzar area = "SILLAS" para planes_trabajo_sillas
+      const planesSillasConArea = (planesSillasData || []).map(plan => ({
+        ...plan,
+        area: "SILLAS"
+      }))
+
+      // Combinar todos los planes
+      const todosPlanes = [...(planesData || []), ...planesSillasConArea]
+
+      setPlanes(todosPlanes)
 
       const grouped: Record<string, Liberacion[]> = {}
       ;(liberacionesData || []).forEach((lib) => {
@@ -97,7 +99,6 @@ export default function PlanesPage() {
         grouped[lib.plan_id].push(lib)
       })
       setLiberaciones(grouped)
-
     } catch (error) {
       console.error(error)
       toast({
@@ -109,8 +110,6 @@ export default function PlanesPage() {
       setLoading(false)
     }
   }
-
-  // Calcula total liberado sumando cantidades de liberaciones de ese plan
   function calcularLiberado(planId: string): number {
     const libs = liberaciones[planId] || []
     return libs.reduce((sum, l) => sum + l.cantidad, 0)
@@ -162,7 +161,6 @@ export default function PlanesPage() {
     }
   }
 
-  // Filtra planes por texto en cliente, pedido, producto, área, etc.
   const planesFiltrados = planes.filter((plan) => {
     const filtro = filtroTexto.trim().toLowerCase()
     if (!filtro) return true
@@ -170,16 +168,12 @@ export default function PlanesPage() {
     return textoPlan.includes(filtro)
   })
 
-  console.log("planesFiltrados:", planesFiltrados)
-
+  // Para exportar, separamos planes por área
   const planesSillas = planesFiltrados.filter((p) => p.area === "SILLAS")
-  console.log("planesSillas filtrados:", planesSillas)
-
   const planesSalas = planesFiltrados.filter((p) => p.area === "SALAS")
 
-  // Función para exportar liberaciones a Excel, mantengo tu código
   function exportarLiberacionesAExcel() {
-    // Preparar datos según área
+    // Función para preparar datos para cada área
     function prepararDatos(planesArea: PlanTrabajo[]) {
       const data: any[] = []
 
@@ -230,10 +224,12 @@ export default function PlanesPage() {
       return
     }
 
+    // Helper para crear hoja con estilos
     function crearHoja(data: any[], nombreHoja: string) {
       const worksheet = XLSX.utils.json_to_sheet(data, { origin: 1 })
       const headers = Object.keys(data[0] || {})
 
+      // Título con rango de fechas arriba (fila 1)
       let titulo = "Liberaciones"
       if (filtroFechaInicio && filtroFechaFin) {
         titulo = `Liberaciones del ${new Date(filtroFechaInicio).toLocaleDateString()} al ${new Date(filtroFechaFin).toLocaleDateString()}`
@@ -251,8 +247,10 @@ export default function PlanesPage() {
           alignment: { horizontal: "center", vertical: "center" },
         },
       }
+      // Merge título en toda la fila de encabezado
       worksheet["!merges"] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: headers.length - 1 } }]
 
+      // Estilo encabezados (fila 2)
       headers.forEach((header, colIdx) => {
         const cellRef = XLSX.utils.encode_cell({ c: colIdx, r: 1 })
         worksheet[cellRef] = {
@@ -272,6 +270,7 @@ export default function PlanesPage() {
         }
       })
 
+      // Estilo filas de datos (desde fila 3)
       for (let row = 2; row < data.length + 2; row++) {
         const fillColor = row % 2 === 0 ? "FFFFFF" : "F2F2F2"
         for (let col = 0; col < headers.length; col++) {
@@ -291,6 +290,7 @@ export default function PlanesPage() {
         }
       }
 
+      // Auto ancho columnas
       worksheet["!cols"] = headers.map((header) => {
         const maxLength = Math.max(
           header.length,
@@ -299,6 +299,7 @@ export default function PlanesPage() {
         return { wch: maxLength + 5 }
       })
 
+      // Filtros en fila de encabezado (fila 2)
       const lastCol = String.fromCharCode(65 + headers.length - 1)
       worksheet["!autofilter"] = {
         ref: `A2:${lastCol}${data.length + 2}`,
@@ -321,7 +322,6 @@ export default function PlanesPage() {
 
     XLSX.writeFile(wb, "liberaciones_planes_trabajo.xlsx")
   }
-
   function renderTabla(area: "SILLAS" | "SALAS") {
     const planesArea = planesFiltrados.filter((p) => p.area === area)
     const gruposPorLp: Record<string, PlanTrabajo[]> = {}
@@ -427,8 +427,7 @@ export default function PlanesPage() {
 
         {loading ? (
           <div className="flex justify-center items-center h-40">
-            <Loader2 className="animate-spin mr-2" />
-            <p>Cargando planes...</p>
+            <Loader2 className="animate-spin h-8 w-8 text-gray-600" />
           </div>
         ) : (
           <>
@@ -437,68 +436,63 @@ export default function PlanesPage() {
           </>
         )}
 
-        {/* Modal liberar */}
+        {/* Modal Liberar */}
         <Dialog open={modalLiberarOpen} onOpenChange={setModalLiberarOpen}>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>Liberar plan {selectedPlan?.producto}</DialogTitle>
+              <DialogTitle>Liberar piezas</DialogTitle>
             </DialogHeader>
             <div className="space-y-4">
-              <Label htmlFor="cantidadLiberar">Cantidad a liberar</Label>
+              <Label>Cantidad a liberar</Label>
               <Input
-                id="cantidadLiberar"
                 type="number"
                 min={1}
                 max={selectedPlan ? calcularPendiente(selectedPlan) : 0}
                 value={cantidadLiberar}
-                onChange={(e) => setCantidadLiberar(parseInt(e.target.value, 10) || 0)}
+                onChange={(e) => setCantidadLiberar(Number(e.target.value))}
               />
-              <Label htmlFor="liberadoPor">Liberado por</Label>
+              <Label>Usuario</Label>
               <Input
-                id="liberadoPor"
                 type="text"
                 value={liberadoPor}
                 onChange={(e) => setLiberadoPor(e.target.value)}
+                placeholder="Nombre de quien libera"
               />
-              <div className="flex justify-end space-x-2 mt-4">
-                <Button onClick={() => setModalLiberarOpen(false)} variant="secondary">
-                  Cancelar
-                </Button>
-                <Button onClick={handleLiberar}>Confirmar</Button>
-              </div>
+              <Button onClick={handleLiberar} className="w-full">
+                Liberar
+              </Button>
             </div>
           </DialogContent>
         </Dialog>
 
-        {/* Modal historial liberaciones */}
+        {/* Modal Historial */}
         <Dialog open={modalHistorialOpen} onOpenChange={setModalHistorialOpen}>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>Historial de liberaciones {selectedPlan?.producto}</DialogTitle>
+              <DialogTitle>Historial de liberaciones</DialogTitle>
             </DialogHeader>
-            <div className="max-h-96 overflow-y-auto">
-              <table className="w-full border text-sm min-w-[700px]">
-                <thead className="bg-gray-100">
-                  <tr>
-                    <th className="border px-2 py-1">Fecha</th>
-                    <th className="border px-2 py-1">Cantidad</th>
-                    <th className="border px-2 py-1">Usuario</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {(selectedPlan && liberaciones[selectedPlan.id]?.length
-                    ? liberaciones[selectedPlan.id]
-                    : []
-                  ).map((lib) => (
-                    <tr key={lib.id}>
-                      <td className="border px-2 py-1">{new Date(lib.fecha).toLocaleString()}</td>
-                      <td className="border px-2 py-1">{lib.cantidad}</td>
-                      <td className="border px-2 py-1">{lib.usuario}</td>
+            {selectedPlan && (
+              <div className="overflow-x-auto max-h-96">
+                <table className="w-full border text-sm min-w-[600px]">
+                  <thead className="bg-gray-100">
+                    <tr>
+                      <th className="border px-2 py-1">Fecha</th>
+                      <th className="border px-2 py-1">Cantidad</th>
+                      <th className="border px-2 py-1">Usuario</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                  </thead>
+                  <tbody>
+                    {(liberaciones[selectedPlan.id] || []).map((lib) => (
+                      <tr key={lib.id}>
+                        <td className="border px-2 py-1">{new Date(lib.fecha).toLocaleString()}</td>
+                        <td className="border px-2 py-1">{lib.cantidad}</td>
+                        <td className="border px-2 py-1">{lib.usuario}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </DialogContent>
         </Dialog>
       </div>
