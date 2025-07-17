@@ -46,7 +46,8 @@ type Liberacion = {
 
 export default function PlanesPage() {
   const { toast } = useToast()
-  const [planes, setPlanes] = useState<PlanTrabajo[]>([])
+  const [planesSillas, setPlanesSillas] = useState<PlanTrabajo[]>([])
+  const [planesSalas, setPlanesSalas] = useState<PlanTrabajo[]>([])
   const [liberaciones, setLiberaciones] = useState<Record<string, Liberacion[]>>({})
   const [loading, setLoading] = useState(true)
 
@@ -67,47 +68,50 @@ export default function PlanesPage() {
   async function fetchData() {
     setLoading(true)
     try {
-      const { data: planesData } = await supabase
-        .from("planes_trabajo")
-        .select("*")
-        .order("fecha", { ascending: false })
-
-      const { data: planesSillasData } = await supabase
+      // Traer solo planes sillas de planes_trabajo_sillas
+      const { data: sillasData, error: sillasError } = await supabase
         .from("planes_trabajo_sillas")
         .select("*")
         .order("fecha", { ascending: false })
 
-      // Forzar area = "SILLAS" para planes_trabajo_sillas
-      const planesSillasConArea = (planesSillasData || []).map(plan => ({
-        ...plan,
-        area: "SILLAS"
-      }))
-
-      // Combinar todos los planes
-      const todosPlanes = [...(planesData || []), ...planesSillasConArea]
-
-      setPlanes(todosPlanes)
-
-      // Obtener liberaciones de ambas tablas y unirlas
-      const { data: liberacionesSalas } = await supabase
-        .from("liberaciones")
-        .select("id, plan_id, cantidad, fecha, usuario")
+      // Traer solo planes salas de planes_trabajo
+      const { data: salasData, error: salasError } = await supabase
+        .from("planes_trabajo")
+        .select("*")
         .order("fecha", { ascending: false })
 
-      const { data: liberacionesSillas } = await supabase
+      if (sillasError || salasError) {
+        throw new Error("Error cargando planes")
+      }
+
+      setPlanesSillas(sillasData || [])
+      setPlanesSalas(salasData || [])
+
+      // Liberaciones para sillas
+      const { data: liberacionesSillasData, error: libSillasErr } = await supabase
         .from("liberaciones_sillas")
-        .select("id, plan_id, cantidad, fecha, usuario")
+        .select("*")
         .order("fecha", { ascending: false })
 
-      // Combinar liberaciones
-      const todasLiberaciones = [...(liberacionesSalas || []), ...(liberacionesSillas || [])]
+      // Liberaciones para salas
+      const { data: liberacionesSalasData, error: libSalasErr } = await supabase
+        .from("liberaciones")
+        .select("*")
+        .order("fecha", { ascending: false })
 
-      const grouped: Record<string, Liberacion[]> = {}
-      todasLiberaciones.forEach((lib) => {
-        if (!grouped[lib.plan_id]) grouped[lib.plan_id] = []
-        grouped[lib.plan_id].push(lib)
+      if (libSillasErr || libSalasErr) {
+        throw new Error("Error cargando liberaciones")
+      }
+
+      // Agrupar liberaciones por plan_id
+      const agrupado: Record<string, Liberacion[]> = {}
+
+      ;[...(liberacionesSillasData || []), ...(liberacionesSalasData || [])].forEach((lib) => {
+        if (!agrupado[lib.plan_id]) agrupado[lib.plan_id] = []
+        agrupado[lib.plan_id].push(lib)
       })
-      setLiberaciones(grouped)
+
+      setLiberaciones(agrupado)
     } catch (error) {
       console.error(error)
       toast({
@@ -119,6 +123,7 @@ export default function PlanesPage() {
       setLoading(false)
     }
   }
+
   function calcularLiberado(planId: string): number {
     const libs = liberaciones[planId] || []
     return libs.reduce((sum, l) => sum + l.cantidad, 0)
@@ -172,173 +177,21 @@ export default function PlanesPage() {
     }
   }
 
-  const planesFiltrados = planes.filter((plan) => {
-    const filtro = filtroTexto.trim().toLowerCase()
-    if (!filtro) return true
-    const textoPlan = `${plan.cliente} ${plan.pedido} ${plan.producto} ${plan.area} ${plan.color} ${plan.lf} ${plan.pt} ${plan.lp}`.toLowerCase()
-    return textoPlan.includes(filtro)
-  })
-
-  // Para exportar, separamos planes por área
-  const planesSillas = planesFiltrados.filter((p) => p.area === "SILLAS")
-  const planesSalas = planesFiltrados.filter((p) => p.area === "SALAS")
-
-  function exportarLiberacionesAExcel() {
-    // Función para preparar datos para cada área
-    function prepararDatos(planesArea: PlanTrabajo[]) {
-      const data: any[] = []
-
-      planesArea.forEach((plan) => {
-        const historial = liberaciones[plan.id] || []
-        historial.forEach((lib) => {
-          const fechaLib = new Date(lib.fecha)
-          if (
-            (filtroFechaInicio && fechaLib < new Date(filtroFechaInicio)) ||
-            (filtroFechaFin && fechaLib > new Date(filtroFechaFin))
-          ) {
-            return
-          }
-
-          const liberado = calcularLiberado(plan.id)
-          const pendiente = plan.cantidad - liberado
-
-          data.push({
-            "Fecha de liberación": fechaLib.toLocaleString(),
-            Producto: plan.producto,
-            Color: plan.color,
-            LF: plan.lf,
-            PT: plan.pt,
-            LP: plan.lp,
-            Pedido: plan.pedido,
-            Cliente: plan.cliente,
-            Cantidad: plan.cantidad,
-            Liberado: liberado,
-            Pendiente: pendiente,
-            "Cantidad liberada": lib.cantidad,
-            Usuario: lib.usuario,
-          })
-        })
-      })
-
-      return data
-    }
-
-    const dataSillas = prepararDatos(planesSillas)
-    const dataSalas = prepararDatos(planesSalas)
-
-    if (dataSillas.length === 0 && dataSalas.length === 0) {
-      toast({
-        title: "Sin datos",
-        description: "No hay liberaciones para exportar con el filtro aplicado",
-        variant: "destructive",
-      })
-      return
-    }
-
-    // Helper para crear hoja con estilos
-    function crearHoja(data: any[], nombreHoja: string) {
-      const worksheet = XLSX.utils.json_to_sheet(data, { origin: 1 })
-      const headers = Object.keys(data[0] || {})
-
-      // Título con rango de fechas arriba (fila 1)
-      let titulo = "Liberaciones"
-      if (filtroFechaInicio && filtroFechaFin) {
-        titulo = `Liberaciones del ${new Date(filtroFechaInicio).toLocaleDateString()} al ${new Date(filtroFechaFin).toLocaleDateString()}`
-      } else if (filtroFechaInicio) {
-        titulo = `Liberaciones desde ${new Date(filtroFechaInicio).toLocaleDateString()}`
-      } else if (filtroFechaFin) {
-        titulo = `Liberaciones hasta ${new Date(filtroFechaFin).toLocaleDateString()}`
-      }
-
-      worksheet["A1"] = {
-        v: titulo,
-        t: "s",
-        s: {
-          font: { color: { rgb: "FF0000" }, bold: true, sz: 14 },
-          alignment: { horizontal: "center", vertical: "center" },
-        },
-      }
-      // Merge título en toda la fila de encabezado
-      worksheet["!merges"] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: headers.length - 1 } }]
-
-      // Estilo encabezados (fila 2)
-      headers.forEach((header, colIdx) => {
-        const cellRef = XLSX.utils.encode_cell({ c: colIdx, r: 1 })
-        worksheet[cellRef] = {
-          v: header,
-          t: "s",
-          s: {
-            fill: { fgColor: { rgb: "404040" } },
-            font: { color: { rgb: "FFFFFF" }, bold: true },
-            alignment: { horizontal: "center", vertical: "center" },
-            border: {
-              top: { style: "thin", color: { rgb: "000000" } },
-              bottom: { style: "thin", color: { rgb: "000000" } },
-              left: { style: "thin", color: { rgb: "000000" } },
-              right: { style: "thin", color: { rgb: "000000" } },
-            },
-          },
-        }
-      })
-
-      // Estilo filas de datos (desde fila 3)
-      for (let row = 2; row < data.length + 2; row++) {
-        const fillColor = row % 2 === 0 ? "FFFFFF" : "F2F2F2"
-        for (let col = 0; col < headers.length; col++) {
-          const cellRef = XLSX.utils.encode_cell({ c: col, r: row })
-          if (!worksheet[cellRef]) continue
-          worksheet[cellRef].s = {
-            fill: { fgColor: { rgb: fillColor } },
-            font: { color: { rgb: "000000" } },
-            alignment: { horizontal: "left", vertical: "center" },
-            border: {
-              top: { style: "thin", color: { rgb: "000000" } },
-              bottom: { style: "thin", color: { rgb: "000000" } },
-              left: { style: "thin", color: { rgb: "000000" } },
-              right: { style: "thin", color: { rgb: "000000" } },
-            },
-          }
-        }
-      }
-
-      // Auto ancho columnas
-      worksheet["!cols"] = headers.map((header) => {
-        const maxLength = Math.max(
-          header.length,
-          ...data.map((d) => (d[header] ? d[header].toString().length : 0))
-        )
-        return { wch: maxLength + 5 }
-      })
-
-      // Filtros en fila de encabezado (fila 2)
-      const lastCol = String.fromCharCode(65 + headers.length - 1)
-      worksheet["!autofilter"] = {
-        ref: `A2:${lastCol}${data.length + 2}`,
-      }
-
-      return worksheet
-    }
-
-    const wb = XLSX.utils.book_new()
-
-    if (dataSillas.length > 0) {
-      const wsSillas = crearHoja(dataSillas, "SILLAS")
-      XLSX.utils.book_append_sheet(wb, wsSillas, "SILLAS")
-    }
-
-    if (dataSalas.length > 0) {
-      const wsSalas = crearHoja(dataSalas, "SALAS")
-      XLSX.utils.book_append_sheet(wb, wsSalas, "SALAS")
-    }
-
-    XLSX.writeFile(wb, "liberaciones_planes_trabajo.xlsx")
+  function filtrarPlanes(planes: PlanTrabajo[]) {
+    return planes.filter((plan) => {
+      const filtro = filtroTexto.trim().toLowerCase()
+      if (!filtro) return true
+      const textoPlan = `${plan.cliente} ${plan.pedido} ${plan.producto} ${plan.color} ${plan.lf} ${plan.pt} ${plan.lp}`.toLowerCase()
+      return textoPlan.includes(filtro)
+    })
   }
 
-  function renderTabla(area: "SILLAS" | "SALAS") {
-    const planesArea = planesFiltrados.filter((p) => p.area === area)
+  function renderTabla(area: "SILLAS" | "SALAS", planesArea: PlanTrabajo[]) {
+    const planesFiltrados = filtrarPlanes(planesArea)
+
     const gruposPorLp: Record<string, PlanTrabajo[]> = {}
 
-    planesArea.forEach((plan) => {
+    planesFiltrados.forEach((plan) => {
       if (!gruposPorLp[plan.lp]) gruposPorLp[plan.lp] = []
       gruposPorLp[plan.lp].push(plan)
     })
@@ -347,9 +200,11 @@ export default function PlanesPage() {
 
     return (
       <Card key={area}>
-        <CardHeader><CardTitle>{area}</CardTitle></CardHeader>
+        <CardHeader>
+          <CardTitle>{area}</CardTitle>
+        </CardHeader>
         <CardContent>
-          {planesArea.length === 0 ? (
+          {planesFiltrados.length === 0 ? (
             <p>No hay planes registrados para {area}.</p>
           ) : (
             lotesOrdenados.map((lp) => (
@@ -432,7 +287,7 @@ export default function PlanesPage() {
         <div className="flex flex-col md:flex-row md:items-center md:space-x-4 mb-4">
           <Input type="date" value={filtroFechaInicio} onChange={(e) => setFiltroFechaInicio(e.target.value)} />
           <Input type="date" value={filtroFechaFin} onChange={(e) => setFiltroFechaFin(e.target.value)} />
-          <Button onClick={exportarLiberacionesAExcel}>Exportar Excel</Button>
+          <Button onClick={() => exportarLiberacionesAExcel()}>Exportar Excel</Button>
         </div>
 
         {loading ? (
@@ -442,11 +297,10 @@ export default function PlanesPage() {
           </div>
         ) : (
           <>
-            {renderTabla("SILLAS")}
-            {renderTabla("SALAS")}
+            {renderTabla("SILLAS", planesSillas)}
+            {renderTabla("SALAS", planesSalas)}
           </>
         )}
-
       </div>
 
       {/* Modal Liberar */}
