@@ -77,11 +77,6 @@ export default function PlanesPage() {
         .select("*")
         .order("fecha", { ascending: false })
 
-      const { data: liberacionesData } = await supabase
-        .from("liberaciones")
-        .select("id, plan_id, cantidad, fecha, usuario")
-        .order("fecha", { ascending: false })
-
       // Forzar area = "SILLAS" para planes_trabajo_sillas
       const planesSillasConArea = (planesSillasData || []).map(plan => ({
         ...plan,
@@ -93,8 +88,22 @@ export default function PlanesPage() {
 
       setPlanes(todosPlanes)
 
+      // Obtener liberaciones de ambas tablas y unirlas
+      const { data: liberacionesSalas } = await supabase
+        .from("liberaciones")
+        .select("id, plan_id, cantidad, fecha, usuario")
+        .order("fecha", { ascending: false })
+
+      const { data: liberacionesSillas } = await supabase
+        .from("liberaciones_sillas")
+        .select("id, plan_id, cantidad, fecha, usuario")
+        .order("fecha", { ascending: false })
+
+      // Combinar liberaciones
+      const todasLiberaciones = [...(liberacionesSalas || []), ...(liberacionesSillas || [])]
+
       const grouped: Record<string, Liberacion[]> = {}
-      ;(liberacionesData || []).forEach((lib) => {
+      todasLiberaciones.forEach((lib) => {
         if (!grouped[lib.plan_id]) grouped[lib.plan_id] = []
         grouped[lib.plan_id].push(lib)
       })
@@ -141,8 +150,10 @@ export default function PlanesPage() {
       toast({ title: "Falta nombre", description: "Debes ingresar quién libera", variant: "destructive" })
       return
     }
+
     try {
-      const { error } = await supabase.from("liberaciones").insert([
+      const tablaLiberaciones = selectedPlan.area === "SILLAS" ? "liberaciones_sillas" : "liberaciones"
+      const { error } = await supabase.from(tablaLiberaciones).insert([
         {
           plan_id: selectedPlan.id,
           cantidad: cantidadLiberar,
@@ -322,6 +333,7 @@ export default function PlanesPage() {
 
     XLSX.writeFile(wb, "liberaciones_planes_trabajo.xlsx")
   }
+
   function renderTabla(area: "SILLAS" | "SALAS") {
     const planesArea = planesFiltrados.filter((p) => p.area === area)
     const gruposPorLp: Record<string, PlanTrabajo[]> = {}
@@ -420,14 +432,13 @@ export default function PlanesPage() {
         <div className="flex flex-col md:flex-row md:items-center md:space-x-4 mb-4">
           <Input type="date" value={filtroFechaInicio} onChange={(e) => setFiltroFechaInicio(e.target.value)} />
           <Input type="date" value={filtroFechaFin} onChange={(e) => setFiltroFechaFin(e.target.value)} />
-          <Button onClick={exportarLiberacionesAExcel} className="bg-green-600 hover:bg-green-700 text-white">
-            Exportar Excel
-          </Button>
+          <Button onClick={exportarLiberacionesAExcel}>Exportar Excel</Button>
         </div>
 
         {loading ? (
-          <div className="flex justify-center items-center h-40">
-            <Loader2 className="animate-spin h-8 w-8 text-gray-600" />
+          <div className="flex justify-center items-center space-x-2">
+            <Loader2 className="animate-spin" size={24} />
+            <span>Cargando planes...</span>
           </div>
         ) : (
           <>
@@ -436,55 +447,62 @@ export default function PlanesPage() {
           </>
         )}
 
-        {/* Modal Liberar */}
-        <Dialog open={modalLiberarOpen} onOpenChange={setModalLiberarOpen}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Registrar Liberación</DialogTitle>
-            </DialogHeader>
-            <div className="space-y-4">
-              <p>
-                Plan: <strong>{selectedPlan?.producto}</strong> - Pendiente: <strong>{selectedPlan ? calcularPendiente(selectedPlan) : 0}</strong>
-              </p>
-              <div>
-                <Label htmlFor="cantidadLiberar">Cantidad a liberar</Label>
-                <Input
-                  id="cantidadLiberar"
-                  type="number"
-                  min={1}
-                  max={selectedPlan ? calcularPendiente(selectedPlan) : 0}
-                  value={cantidadLiberar}
-                  onChange={(e) => setCantidadLiberar(Number(e.target.value))}
-                />
-              </div>
-              <div>
-                <Label htmlFor="liberadoPor">Liberado por</Label>
-                <Input
-                  id="liberadoPor"
-                  type="text"
-                  value={liberadoPor}
-                  onChange={(e) => setLiberadoPor(e.target.value)}
-                />
-              </div>
-              <div className="flex justify-end space-x-2">
-                <Button variant="outline" onClick={() => setModalLiberarOpen(false)}>
-                  Cancelar
-                </Button>
-                <Button onClick={handleLiberar}>Registrar</Button>
-              </div>
-            </div>
-          </DialogContent>
-        </Dialog>
+      </div>
 
-        {/* Modal Historial */}
-        <Dialog open={modalHistorialOpen} onOpenChange={setModalHistorialOpen}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Historial de Liberaciones</DialogTitle>
-            </DialogHeader>
-            <div className="overflow-x-auto max-h-96">
-              <table className="w-full border text-sm min-w-[600px]">
-                <thead className="bg-gray-100">
+      {/* Modal Liberar */}
+      <Dialog open={modalLiberarOpen} onOpenChange={setModalLiberarOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Registrar liberación</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <p>
+              Plan: <strong>{selectedPlan?.producto}</strong>
+            </p>
+            <p>
+              Cantidad pendiente: <strong>{selectedPlan ? calcularPendiente(selectedPlan) : 0}</strong>
+            </p>
+            <div>
+              <Label htmlFor="cantidad">Cantidad a liberar</Label>
+              <Input
+                id="cantidad"
+                type="number"
+                min={1}
+                max={selectedPlan ? calcularPendiente(selectedPlan) : 0}
+                value={cantidadLiberar}
+                onChange={(e) => setCantidadLiberar(parseInt(e.target.value) || 0)}
+              />
+            </div>
+            <div>
+              <Label htmlFor="usuario">Usuario que libera</Label>
+              <Input
+                id="usuario"
+                type="text"
+                value={liberadoPor}
+                onChange={(e) => setLiberadoPor(e.target.value)}
+                placeholder="Nombre del usuario"
+              />
+            </div>
+            <div className="flex justify-end space-x-2">
+              <Button variant="secondary" onClick={() => setModalLiberarOpen(false)}>
+                Cancelar
+              </Button>
+              <Button onClick={handleLiberar}>Confirmar</Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal Historial */}
+      <Dialog open={modalHistorialOpen} onOpenChange={setModalHistorialOpen}>
+        <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Historial de liberaciones</DialogTitle>
+          </DialogHeader>
+          <div>
+            {selectedPlan && liberaciones[selectedPlan.id] ? (
+              <table className="w-full border text-sm">
+                <thead className="bg-gray-100 sticky top-0">
                   <tr>
                     <th className="border px-2 py-1">Fecha</th>
                     <th className="border px-2 py-1">Cantidad</th>
@@ -492,23 +510,32 @@ export default function PlanesPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {(selectedPlan && liberaciones[selectedPlan.id]?.length ? liberaciones[selectedPlan.id] : []).map((lib) => (
-                    <tr key={lib.id}>
-                      <td className="border px-2 py-1">{new Date(lib.fecha).toLocaleString()}</td>
-                      <td className="border px-2 py-1">{lib.cantidad}</td>
-                      <td className="border px-2 py-1">{lib.usuario}</td>
-                    </tr>
-                  ))}
+                  {liberaciones[selectedPlan.id]
+                    .filter((lib) => {
+                      if (filtroFechaInicio && new Date(lib.fecha) < new Date(filtroFechaInicio)) return false
+                      if (filtroFechaFin && new Date(lib.fecha) > new Date(filtroFechaFin)) return false
+                      return true
+                    })
+                    .map((lib) => (
+                      <tr key={lib.id}>
+                        <td className="border px-2 py-1">{new Date(lib.fecha).toLocaleString()}</td>
+                        <td className="border px-2 py-1">{lib.cantidad}</td>
+                        <td className="border px-2 py-1">{lib.usuario}</td>
+                      </tr>
+                    ))}
                 </tbody>
               </table>
-              {!selectedPlan || !liberaciones[selectedPlan.id]?.length ? <p>No hay liberaciones registradas.</p> : null}
-            </div>
-            <div className="flex justify-end mt-4">
-              <Button onClick={() => setModalHistorialOpen(false)}>Cerrar</Button>
-            </div>
-          </DialogContent>
-        </Dialog>
-      </div>
+            ) : (
+              <p>No hay liberaciones para este plan.</p>
+            )}
+          </div>
+          <div className="mt-4 flex justify-end">
+            <Button variant="secondary" onClick={() => setModalHistorialOpen(false)}>
+              Cerrar
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
