@@ -64,7 +64,10 @@ export default function CrearPlanPage() {
     setIsSubmitting(true)
 
     try {
-      const { error } = await supabase.from("planes_trabajo").insert([
+      const tablaDestino =
+        formData.area === "SILLAS" ? "planes_trabajo_sillas" : "planes_trabajo"
+
+      const { error } = await supabase.from(tablaDestino).insert([
         {
           area: formData.area,
           cantidad: parseInt(formData.cantidad),
