@@ -252,6 +252,7 @@ export default function PlanesPage() {
         titulo = `Liberaciones hasta ${new Date(filtroFechaFin).toLocaleDateString()}`
       }
 
+      // Fila 1 con título en rojo centrado y merge
       worksheet["A1"] = {
         v: titulo,
         t: "s",
@@ -262,13 +263,14 @@ export default function PlanesPage() {
       }
       worksheet["!merges"] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: headers.length - 1 } }]
 
+      // Estilo para encabezados fila 2
       headers.forEach((header, colIdx) => {
         const cellRef = XLSX.utils.encode_cell({ c: colIdx, r: 1 })
         worksheet[cellRef] = {
           v: header,
           t: "s",
           s: {
-            fill: { fgColor: { rgb: "404040" } },
+            fill: { fgColor: { rgb: "404040" } }, // gris oscuro
             font: { color: { rgb: "FFFFFF" }, bold: true },
             alignment: { horizontal: "center", vertical: "center" },
             border: {
@@ -281,8 +283,9 @@ export default function PlanesPage() {
         }
       })
 
+      // Estilo para filas de datos (filas 3 en adelante)
       for (let row = 2; row < data.length + 2; row++) {
-        const fillColor = row % 2 === 0 ? "FFFFFF" : "F2F2F2"
+        const fillColor = row % 2 === 0 ? "FFFFFF" : "F2F2F2" // filas alternadas blanco y gris claro
         for (let col = 0; col < headers.length; col++) {
           const cellRef = XLSX.utils.encode_cell({ c: col, r: row })
           if (!worksheet[cellRef]) continue
@@ -300,6 +303,7 @@ export default function PlanesPage() {
         }
       }
 
+      // Ajustar ancho automático de columnas según contenido
       worksheet["!cols"] = headers.map((header) => {
         const maxLength = Math.max(
           header.length,
@@ -308,7 +312,8 @@ export default function PlanesPage() {
         return { wch: maxLength + 5 }
       })
 
-      const lastCol = String.fromCharCode(65 + headers.length - 1)
+      // Autofiltro sobre fila de encabezados (fila 2)
+      const lastCol = XLSX.utils.encode_col(headers.length - 1)
       worksheet["!autofilter"] = {
         ref: `A2:${lastCol}${data.length + 2}`,
       }
@@ -429,14 +434,13 @@ export default function PlanesPage() {
         <div className="flex flex-col md:flex-row md:items-center md:space-x-4 mb-4">
           <Input type="date" value={filtroFechaInicio} onChange={(e) => setFiltroFechaInicio(e.target.value)} />
           <Input type="date" value={filtroFechaFin} onChange={(e) => setFiltroFechaFin(e.target.value)} />
-          <Button onClick={exportarLiberacionesAExcel}>Exportar liberaciones Excel</Button>
-          <Button onClick={fetchData} variant="outline">
-            {loading ? <Loader2 className="animate-spin" /> : "Recargar"}
-          </Button>
+          <Button onClick={() => exportarLiberacionesAExcel()}>Exportar a Excel</Button>
         </div>
 
         {loading ? (
-          <p>Cargando...</p>
+          <div className="flex justify-center items-center">
+            <Loader2 className="animate-spin" />
+          </div>
         ) : (
           <>
             {renderTabla("SILLAS")}
@@ -444,84 +448,88 @@ export default function PlanesPage() {
           </>
         )}
 
-        {/* Modal liberar */}
-        <Dialog open={modalLiberarOpen} onOpenChange={setModalLiberarOpen}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>
-                Liberar piezas - {selectedPlan?.producto} ({selectedPlan?.area})
-              </DialogTitle>
-            </DialogHeader>
+      </div>
+
+      {/* Modal Liberar */}
+      <Dialog open={modalLiberarOpen} onOpenChange={setModalLiberarOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Registrar liberación</DialogTitle>
+          </DialogHeader>
+          {selectedPlan && (
             <div className="space-y-4">
-              <div>
-                <Label htmlFor="cantidadLiberar">Cantidad a liberar</Label>
-                <Input
-                  id="cantidadLiberar"
-                  type="number"
-                  min={1}
-                  max={selectedPlan ? calcularPendiente(selectedPlan) : undefined}
-                  value={cantidadLiberar}
-                  onChange={(e) => setCantidadLiberar(Number(e.target.value))}
-                />
-              </div>
-              <div>
-                <Label htmlFor="liberadoPor">Liberado por</Label>
-                <Input
-                  id="liberadoPor"
-                  type="text"
-                  value={liberadoPor}
-                  onChange={(e) => setLiberadoPor(e.target.value)}
-                />
-              </div>
+              <p>
+                Producto: <strong>{selectedPlan.producto}</strong> - Pedido: <strong>{selectedPlan.pedido}</strong>
+              </p>
+              <Label htmlFor="cantidadLiberar">Cantidad a liberar (pendiente: {calcularPendiente(selectedPlan)})</Label>
+              <Input
+                id="cantidadLiberar"
+                type="number"
+                min={1}
+                max={calcularPendiente(selectedPlan)}
+                value={cantidadLiberar}
+                onChange={(e) => setCantidadLiberar(Number(e.target.value))}
+              />
+              <Label htmlFor="liberadoPor">Quién libera</Label>
+              <Input
+                id="liberadoPor"
+                type="text"
+                value={liberadoPor}
+                onChange={(e) => setLiberadoPor(e.target.value)}
+              />
               <div className="flex justify-end space-x-2">
-                <Button variant="outline" onClick={() => setModalLiberarOpen(false)}>
+                <Button variant="secondary" onClick={() => setModalLiberarOpen(false)}>
                   Cancelar
                 </Button>
-                <Button onClick={handleLiberar}>Confirmar</Button>
+                <Button onClick={handleLiberar}>Guardar</Button>
               </div>
             </div>
-          </DialogContent>
-        </Dialog>
+          )}
+        </DialogContent>
+      </Dialog>
 
-        {/* Modal historial */}
-        <Dialog open={modalHistorialOpen} onOpenChange={setModalHistorialOpen}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Historial de liberaciones</DialogTitle>
-            </DialogHeader>
-            <div className="max-h-96 overflow-auto">
-              <table className="w-full border text-sm min-w-[600px]">
+      {/* Modal Historial */}
+      <Dialog open={modalHistorialOpen} onOpenChange={setModalHistorialOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Historial de liberaciones</DialogTitle>
+          </DialogHeader>
+          {selectedPlan ? (
+            <div className="overflow-auto max-h-96">
+              <table className="w-full border text-sm min-w-[500px]">
                 <thead className="bg-gray-100">
                   <tr>
                     <th className="border px-2 py-1">Fecha</th>
-                    <th className="border px-2 py-1">Cantidad</th>
+                    <th className="border px-2 py-1">Cantidad liberada</th>
                     <th className="border px-2 py-1">Usuario</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {(selectedPlan && liberaciones[selectedPlan.id]
-                    ? liberaciones[selectedPlan.id]
-                    : []
-                  ).map((lib) => (
+                  {(liberaciones[selectedPlan.id] || []).map((lib) => (
                     <tr key={lib.id}>
                       <td className="border px-2 py-1">{new Date(lib.fecha).toLocaleString()}</td>
                       <td className="border px-2 py-1">{lib.cantidad}</td>
                       <td className="border px-2 py-1">{lib.usuario}</td>
                     </tr>
                   ))}
-                  {selectedPlan && (!liberaciones[selectedPlan.id] || liberaciones[selectedPlan.id].length === 0) && (
+                  {(!liberaciones[selectedPlan.id] || liberaciones[selectedPlan.id].length === 0) && (
                     <tr>
-                      <td colSpan={3} className="text-center py-2">
-                        No hay liberaciones registradas
-                      </td>
+                      <td colSpan={3} className="text-center p-2">No hay liberaciones registradas</td>
                     </tr>
                   )}
                 </tbody>
               </table>
             </div>
-          </DialogContent>
-        </Dialog>
-      </div>
+          ) : (
+            <p>No hay plan seleccionado</p>
+          )}
+          <div className="flex justify-end mt-4">
+            <Button variant="secondary" onClick={() => setModalHistorialOpen(false)}>
+              Cerrar
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
